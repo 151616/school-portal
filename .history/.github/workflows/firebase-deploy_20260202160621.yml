@@ -1,0 +1,38 @@
+name: Firebase Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy functions & database
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools@latest
+
+      - name: Install functions dependencies
+        run: npm --prefix functions ci
+        if: files.exists('functions/package.json') || env.FORCE_INSTALL == 'true'
+
+      - name: Deploy to Firebase (functions & database)
+        env:
+          FIREBASE_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          echo "Deploying to Firebase project: $FIREBASE_PROJECT"
+          firebase deploy --only functions,database --project "$FIREBASE_PROJECT"

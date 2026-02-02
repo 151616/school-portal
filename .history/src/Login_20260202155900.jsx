@@ -1,0 +1,44 @@
+import React, { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "./firebase";
+import Toasts from './Toasts';
+import { addToast } from './toastService';
+import { CheckIcon } from './icons';
+
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleLogin = async () => {
+    if (!email || !password) return addToast('error', 'Fill both fields!');
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+     console.error("Full Firebase error:", error);
+      addToast('error', 'Login failed: ' + (error.message || error));
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 400, margin: "50px auto", textAlign: "center" }}>
+      <h2>Login</h2>
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        style={{ display: "block", margin: "10px auto", width: "100%" }}
+      />
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        style={{ display: "block", margin: "10px auto", width: "100%" }}
+      />
+      <button onClick={handleLogin} style={{ marginTop: 10 }}>
+        Login
+      </button>
+    </div>
+  );
+}
