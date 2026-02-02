@@ -51,7 +51,6 @@ export default function StudentSignup() {
   return (
     <div className="app-container">
       <div className="card" style={{ maxWidth: 480 }}>
-        <Toasts />
         <div className="card-header">
           <h2>Student Signup</h2>
           <div className="muted">Use the invite you received to complete signup. Email must match invite.</div>
@@ -83,7 +82,7 @@ export default function StudentSignup() {
           />
 
           <button className="btn btn-primary" onClick={handleSignup} style={{ marginTop: 12 }}>
-            <CheckIcon className="icon"/> Sign Up
+            Sign Up
           </button>
         </div>
       </div>

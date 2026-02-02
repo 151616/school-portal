@@ -4,7 +4,7 @@ import { db, auth } from "./firebase"; // make sure auth is imported
 import Toasts from "./Toasts";
 import { addToast } from "./toastService";
 import ConfirmModal from "./ConfirmModal";
-import { CopyIcon, DeleteIcon, LinkIcon, PlusIcon } from "./icons";
+import { CopyIcon, DeleteIcon, LinkIcon } from "./icons";
 
 export default function AdminDashboard() {
   const [email, setEmail] = useState("");
@@ -184,7 +184,7 @@ export default function AdminDashboard() {
             </select>
 
             <button className="btn btn-primary" onClick={handleAddUser} disabled={loading}>
-              {loading ? 'Creating...' : (<><PlusIcon className="icon"/> Create Invite</>)}
+              {loading ? 'Creating...' : 'Create Invite'}
             </button>
           </div>
         </div>
@@ -261,14 +261,6 @@ export default function AdminDashboard() {
           </ul>
         </div>
       </div>
-
-      <ConfirmModal 
-        open={confirm.open}
-        title={`Delete ${confirm.email}?`}
-        description={`Are you sure you want to permanently delete this user (${confirm.email})? This action cannot be undone.`}
-        onCancel={closeConfirm}
-        onConfirm={() => performDeleteUser(confirm.uid)}
-      />
     </div>
   );
 }

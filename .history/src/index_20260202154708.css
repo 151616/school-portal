@@ -91,15 +91,3 @@ body {
   .form-row { flex-direction: column; align-items: stretch; }
   .select { width: 100%; }
 }
-
-/* Icon spacing and button hover polish */
-.icon { width: 16px; height: 16px; vertical-align: middle; margin-right: 8px; display: inline-block; }
-
-.btn { transition: transform .12s ease, box-shadow .12s ease, background-color .12s ease; }
-.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
-
-/* Modal styles */
-.modal-overlay { position: fixed; inset: 0; background: rgba(13,12,10,0.35); display: flex; align-items: center; justify-content: center; z-index: 10000; }
-.modal { background: var(--panel); padding: 18px; border-radius: 12px; width: 360px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
-.modal h4 { margin: 0 0 6px; }
-.modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }

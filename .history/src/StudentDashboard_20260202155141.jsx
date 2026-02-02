@@ -12,21 +12,15 @@ export default function StudentSignup() {
   const [inviteId, setInviteId] = useState(() => new URLSearchParams(window.location.search).get("inviteId") || "");
 
   const handleSignup = async () => {
-    if (!email || !password || !inviteId) {
-      addToast('error', 'Fill all fields!');
-      return;
-    }
+    if (!email || !password || !inviteId) return alert("Fill all fields!");
 
     try {
       const inviteSnap = await get(ref(db, `invites/${inviteId}`));
-      if (!inviteSnap.exists()) {
-        addToast('error', 'Invalid invite ID.');
-        return;
-      }
+      if (!inviteSnap.exists()) return alert("Invalid invite ID.");
 
       const invite = inviteSnap.val();
-      if (invite.used) return addToast('error', 'Invite already used.');
-      if (invite.email !== email) return addToast('error', 'Email does not match invite.');
+      if (invite.used) return alert("Invite already used.");
+      if (invite.email !== email) return alert("Email does not match invite.");
 
       const cred = await createUserWithEmailAndPassword(auth, email, password);
 
@@ -39,19 +33,18 @@ export default function StudentSignup() {
 
       await update(ref(db, `invites/${inviteId}`), { used: true });
 
-      addToast('success', 'Signup successful! You can now log in.');
+      alert("Signup successful! You can now log in.");
       setEmail("");
       setPassword("");
       setInviteId("");
     } catch (error) {
-      addToast('error', 'Signup failed: ' + (error.message || error));
+      alert("Signup failed: " + error.message);
     }
   };
 
   return (
     <div className="app-container">
       <div className="card" style={{ maxWidth: 480 }}>
-        <Toasts />
         <div className="card-header">
           <h2>Student Signup</h2>
           <div className="muted">Use the invite you received to complete signup. Email must match invite.</div>
@@ -83,7 +76,7 @@ export default function StudentSignup() {
           />
 
           <button className="btn btn-primary" onClick={handleSignup} style={{ marginTop: 12 }}>
-            <CheckIcon className="icon"/> Sign Up
+            Sign Up
           </button>
         </div>
       </div>

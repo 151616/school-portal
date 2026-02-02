@@ -3,8 +3,6 @@ import { ref, set, push, onValue, get } from "firebase/database";
 import { db, auth } from "./firebase"; // make sure auth is imported
 import Toasts from "./Toasts";
 import { addToast } from "./toastService";
-import ConfirmModal from "./ConfirmModal";
-import { CopyIcon, DeleteIcon, LinkIcon, PlusIcon } from "./icons";
 
 export default function AdminDashboard() {
   const [email, setEmail] = useState("");
@@ -132,16 +130,11 @@ export default function AdminDashboard() {
     }
   }; 
 
-  // Delete flow using modal confirmation
-  const [confirm, setConfirm] = useState({ open: false, uid: null, email: "" });
-
-  const openDeleteConfirm = (uid, email) => setConfirm({ open: true, uid, email });
-  const closeConfirm = () => setConfirm({ open: false, uid: null, email: "" });
-
-  const performDeleteUser = async (uid) => {
+  // Delete a user (with confirmation)
+  const handleDeleteUser = async (uid) => {
     if (!uid) return;
-    // close modal immediately for a responsive feel
-    closeConfirm();
+    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+
     setDeleting(uid);
     try {
       await set(ref(db, `Users/${uid}`), null);
@@ -152,7 +145,7 @@ export default function AdminDashboard() {
     } finally {
       setDeleting(null);
     }
-  };  
+  }; 
 
   return (
     <div className="app-container">
@@ -184,7 +177,7 @@ export default function AdminDashboard() {
             </select>
 
             <button className="btn btn-primary" onClick={handleAddUser} disabled={loading}>
-              {loading ? 'Creating...' : (<><PlusIcon className="icon"/> Create Invite</>)}
+              {loading ? 'Creating...' : 'Create Invite'}
             </button>
           </div>
         </div>
@@ -201,8 +194,8 @@ export default function AdminDashboard() {
                   <div className="meta">{u.role}</div>
                 </div>
                 <div>
-                  <button className="btn btn-ghost" onClick={() => openDeleteConfirm(u.uid, u.email)} disabled={deleting === u.uid}>
-                    <DeleteIcon className="icon" /> {deleting === u.uid ? 'Deleting...' : 'Delete'}
+                  <button className="btn btn-ghost" onClick={() => handleDeleteUser(u.uid)} disabled={deleting === u.uid}>
+                    {deleting === u.uid ? 'Deleting...' : 'Delete'}
                   </button>
                 </div>
               </li>
@@ -225,7 +218,7 @@ export default function AdminDashboard() {
                   </div>
 
                   <div>
-                    <a href={signupUrl} target="_blank" rel="noreferrer" className="small"><LinkIcon className="icon" /> Signup Link</a>
+                    <a href={signupUrl} target="_blank" rel="noreferrer" className="small">Signup Link</a>
                     <button
                       className="btn btn-ghost"
                       style={{ marginLeft: 10 }}
@@ -238,7 +231,7 @@ export default function AdminDashboard() {
                         }
                       }}
                     >
-                      <CopyIcon className="icon" /> Copy Link
+                      Copy Link
                     </button>
                     <button
                       className="btn btn-ghost"
@@ -252,7 +245,7 @@ export default function AdminDashboard() {
                         }
                       }}
                     >
-                      <CopyIcon className="icon" /> Copy ID
+                      Copy ID
                     </button>
                   </div>
                 </li>
@@ -261,14 +254,6 @@ export default function AdminDashboard() {
           </ul>
         </div>
       </div>
-
-      <ConfirmModal 
-        open={confirm.open}
-        title={`Delete ${confirm.email}?`}
-        description={`Are you sure you want to permanently delete this user (${confirm.email})? This action cannot be undone.`}
-        onCancel={closeConfirm}
-        onConfirm={() => performDeleteUser(confirm.uid)}
-      />
     </div>
   );
 }

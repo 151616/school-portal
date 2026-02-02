@@ -4,7 +4,7 @@ import { db, auth } from "./firebase"; // make sure auth is imported
 import Toasts from "./Toasts";
 import { addToast } from "./toastService";
 import ConfirmModal from "./ConfirmModal";
-import { CopyIcon, DeleteIcon, LinkIcon, PlusIcon } from "./icons";
+import { CopyIcon, DeleteIcon, LinkIcon } from "./icons";
 
 export default function AdminDashboard() {
   const [email, setEmail] = useState("");
