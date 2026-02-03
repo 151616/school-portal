@@ -319,7 +319,7 @@ export default function AdminDashboard() {
 
       setEmail(""); // reset input
 
-      //Update local state immediately
+      // 6️⃣ Update local state immediately
       setInvites((prev) => [
         ...prev,
         { id: inviteRef.key, email: emailLower, role, studentId, used: false, createdBy: auth.currentUser.uid }

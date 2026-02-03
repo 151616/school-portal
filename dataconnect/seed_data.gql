@@ -1,0 +1,44 @@
+mutation CreateDemoData @transaction @auth(level: PUBLIC, insecureReason: "This operation is for demo purposes and does not require authentication") {
+  user_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      firstName: "demouser1",
+      lastName: "lastname1",
+      username: "demouser1",
+      passwordHash: "passwordhash1",
+      role: "student"
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      firstName: "demouser2",
+      lastName: "lastname2",
+      username: "demouser2",
+      passwordHash: "passwordhash2",
+      role: "teacher"
+    }
+  ])
+  course_insertMany(data: [
+    {
+      id: "650e8400-e29b-41d4-a716-446655440000",
+      name: "course1",
+      courseCode: "code1"
+    },
+    {
+      id: "650e8400-e29b-41d4-a716-446655440001",
+      name: "course2",
+      courseCode: "code2"
+    }
+  ])
+  enrollment_insertMany(data: [
+    {
+      studentId: "550e8400-e29b-41d4-a716-446655440000",
+      courseId: "650e8400-e29b-41d4-a716-446655440000",
+      enrollmentDate: "2024-01-01"
+    },
+    {
+      studentId: "550e8400-e29b-41d4-a716-446655440001",
+      courseId: "650e8400-e29b-41d4-a716-446655440001",
+      enrollmentDate: "2024-01-02"
+    }
+  ])
+}

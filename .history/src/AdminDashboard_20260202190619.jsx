@@ -270,7 +270,7 @@ export default function AdminDashboard() {
 
     setLoading(true);
     try {
-      //Fetch current Users and invites
+      // 1️⃣ Fetch current Users and invites
       const usersSnap = await get(ref(db, "Users"));
       const usersData = usersSnap.val() || {};
 
@@ -300,7 +300,7 @@ export default function AdminDashboard() {
       //Generate a unique student ID
       const studentId = generateUniqueStudentId(usersData, invitesData);
 
-      //Push invite to Firebase including createdBy
+      // 4️⃣ Push invite to Firebase including createdBy
       const inviteRef = push(ref(db, "invites"));
       await set(inviteRef, {
         email: emailLower,
@@ -311,7 +311,7 @@ export default function AdminDashboard() {
         createdBy: auth.currentUser.uid,
       });
 
-      //Generate signup link (logged for admin convenience)
+      // 5️⃣ Generate signup link (logged for admin convenience)
       const signupUrl = `${window.location.origin}/signup?inviteId=${inviteRef.key}`;
       console.log('Signup link:', signupUrl);
 
@@ -319,7 +319,7 @@ export default function AdminDashboard() {
 
       setEmail(""); // reset input
 
-      //Update local state immediately
+      // 6️⃣ Update local state immediately
       setInvites((prev) => [
         ...prev,
         { id: inviteRef.key, email: emailLower, role, studentId, used: false, createdBy: auth.currentUser.uid }

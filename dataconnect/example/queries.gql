@@ -1,0 +1,28 @@
+mutation CreateNewUser($firstName: String!, $lastName: String!, $username: String!, $passwordHash: String!, $email: String!, $role: String!) @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
+  user_insert(data: {firstName: $firstName, lastName: $lastName, username: $username, passwordHash: $passwordHash, email: $email, role: $role})
+}
+
+query GetUserByUsername($username: String!) @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users.") {
+  users(where: {username: {eq: $username}}) {
+    id
+    firstName
+    lastName
+    email
+    role
+  }
+}
+
+mutation EnrollUserInCourse($studentId: UUID!, $courseId: UUID!, $enrollmentDate: Date!) @auth(level: USER) {
+  enrollment_insert(data: {studentId: $studentId, courseId: $courseId, enrollmentDate: $enrollmentDate})
+}
+
+query GetCoursesForStudent($studentId: UUID!) @auth(level: USER) {
+  enrollments(where: {studentId: {eq: $studentId}}) {
+    course {
+      id
+      name
+      description
+      courseCode
+    }
+  }
+}
