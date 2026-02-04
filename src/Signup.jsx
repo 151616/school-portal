@@ -14,6 +14,8 @@ export default function Signup() {
   const [invite, setInvite] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastInitial, setLastInitial] = useState("");
   const [loading, setLoading] = useState(true);
 
   const inviteId = searchParams.get("inviteId");
@@ -51,6 +53,15 @@ export default function Signup() {
       addToast("error", "Enter a password!");
       return;
     }
+    if (!firstName.trim()) {
+      addToast("error", "Enter your first name!");
+      return;
+    }
+    if (!lastInitial.trim()) {
+      addToast("error", "Enter your last initial!");
+      return;
+    }
+    const lastInitialClean = lastInitial.trim().charAt(0).toUpperCase();
 
     try {
       // 1️⃣ Create Firebase Auth account
@@ -60,7 +71,11 @@ export default function Signup() {
       // 2️⃣ Call Cloud Function to assign role + mark invite
       const functions = getFunctions();
       const assignRole = httpsCallable(functions, "assignRoleFromInvite");
-      await assignRole({ inviteId });
+      await assignRole({
+        inviteId,
+        firstName: firstName.trim(),
+        lastInitial: lastInitialClean,
+      });
 
       // 3️⃣ Refresh ID token so new claims appear
       await auth.currentUser.getIdToken(true);
@@ -86,6 +101,23 @@ export default function Signup() {
 
         <div className="section">
           <div className="small">Email: <strong>{email}</strong></div>
+          <div style={{ height: 12 }} />
+          <input
+            className="input"
+            type="text"
+            placeholder="First name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+          />
+          <div style={{ height: 12 }} />
+          <input
+            className="input"
+            type="text"
+            placeholder="Last initial"
+            value={lastInitial}
+            onChange={(e) => setLastInitial(e.target.value)}
+            maxLength={1}
+          />
           <div style={{ height: 12 }} />
           <input
             className="input"

@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "engines": {
-    "node": "16"
+    "node": "20"
   },
   "dependencies": {
     "@dataconnect/admin-generated": "file:src/dataconnect-admin-generated",

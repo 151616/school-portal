@@ -1,6 +1,6 @@
 /* eslint-env node */
 /* eslint-disable no-undef */
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 
 admin.initializeApp();
@@ -62,7 +62,7 @@ exports.assignRoleFromInvite = functions.https.onCall(
       );
     }
 
-    const { inviteId } = data;
+    const { inviteId, firstName, lastInitial } = data;
     const uid = context.auth.uid;
 
     if (!inviteId) {
@@ -89,6 +89,8 @@ exports.assignRoleFromInvite = functions.https.onCall(
     }
 
     const role = invite.role;
+    const safeFirstName = typeof firstName === 'string' ? firstName.trim() : '';
+    const safeLastInitial = typeof lastInitial === 'string' ? lastInitial.trim().charAt(0).toUpperCase() : '';
 
     // Set custom claim
     await admin.auth().setCustomUserClaims(uid, {
@@ -99,6 +101,8 @@ exports.assignRoleFromInvite = functions.https.onCall(
     await admin.database().ref(`Users/${uid}`).set({
       email: invite.email,
       role,
+      firstName: safeFirstName,
+      lastInitial: safeLastInitial,
       createdAt: Date.now(),
     });
 
@@ -109,5 +113,42 @@ exports.assignRoleFromInvite = functions.https.onCall(
     });
 
     return { success: true, role };
+  }
+);
+
+// --- callable admin delete (auth + RTDB) ---
+exports.deleteUserByAdmin = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth || !context.auth.token || context.auth.token.admin !== true) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "Admin privileges required"
+      );
+    }
+
+    const { uid } = data || {};
+    if (!uid) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing uid"
+      );
+    }
+
+    // Delete Auth user (ignore not-found)
+    try {
+      await admin.auth().deleteUser(uid);
+    } catch (err) {
+      if (err && err.code !== "auth/user-not-found") {
+        throw new functions.https.HttpsError(
+          "internal",
+          err.message || String(err)
+        );
+      }
+    }
+
+    // Delete RTDB user record
+    await admin.database().ref(`Users/${uid}`).set(null);
+
+    return { success: true };
   }
 );

@@ -1,90 +1,109 @@
-import React, { useState } from "react";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { ref, set, get, update } from "firebase/database";
-import { auth, db } from "./firebase";
-import Toasts from './Toasts';
-import { addToast } from './toastService';
-import { CheckIcon } from './icons';
+import React, { useEffect, useState } from "react";
+import { ref, onValue } from "firebase/database";
+import { db } from "./firebase";
+import Toasts from "./Toasts";
+import { addToast } from "./toastService";
 
-export default function StudentSignup() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [inviteId, setInviteId] = useState(() => new URLSearchParams(window.location.search).get("inviteId") || "");
+export default function StudentDashboard({ user }) {
+  const [profile, setProfile] = useState(null);
+  const [grades, setGrades] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleSignup = async () => {
-    if (!email || !password || !inviteId) {
-      addToast('error', 'Fill all fields!');
-      return;
-    }
+  useEffect(() => {
+    if (!user) return;
 
-    try {
-      const inviteSnap = await get(ref(db, `invites/${inviteId}`));
-      if (!inviteSnap.exists()) {
-        addToast('error', 'Invalid invite ID.');
-        return;
+    const userRef = ref(db, `Users/${user.uid}`);
+    const gradesRef = ref(db, `grades/${user.uid}`);
+
+    const unsubscribeUser = onValue(
+      userRef,
+      (snapshot) => {
+        setProfile(snapshot.exists() ? snapshot.val() : null);
+      },
+      (error) => {
+        console.error("Profile read error:", error);
+        addToast("error", "Unable to load profile");
       }
+    );
 
-      const invite = inviteSnap.val();
-      if (invite.used) return addToast('error', 'Invite already used.');
-      if (invite.email !== email) return addToast('error', 'Email does not match invite.');
+    const unsubscribeGrades = onValue(
+      gradesRef,
+      (snapshot) => {
+        setGrades(snapshot.exists() ? snapshot.val() : {});
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Grades read error:", error);
+        addToast("error", "Unable to load grades");
+        setLoading(false);
+      }
+    );
 
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
+    return () => {
+      unsubscribeUser();
+      unsubscribeGrades();
+    };
+  }, [user]);
 
-      await set(ref(db, `Users/${cred.user.uid}`), {
-        email,
-        role: invite.role,
-        studentId: invite.studentId,
-        createdAt: Date.now()
-      });
+  const renderName = () => {
+    if (!profile) return "Student";
+    const first = profile.firstName || "";
+    const lastInitial = profile.lastInitial ? `${profile.lastInitial}.` : "";
+    const name = `${first} ${lastInitial}`.trim();
+    return name || "Student";
+  };
 
-      await update(ref(db, `invites/${inviteId}`), { used: true });
-
-      addToast('success', 'Signup successful! You can now log in.');
-      setEmail("");
-      setPassword("");
-      setInviteId("");
-    } catch (error) {
-      addToast('error', 'Signup failed: ' + (error.message || error));
+  const renderGrades = () => {
+    if (!grades || Object.keys(grades).length === 0) {
+      return <div className="small">No grades yet.</div>;
     }
+
+    return Object.entries(grades).map(([classId, classData]) => {
+      const assignments = classData?.assignments
+        ? Object.values(classData.assignments)
+        : [];
+
+      return (
+        <div
+          key={classId}
+          style={{
+            marginTop: 12,
+            padding: 12,
+            border: "1px solid #eee",
+            borderRadius: 8,
+          }}
+        >
+          <strong>{classId}</strong>
+          {assignments.length === 0 ? (
+            <div className="small" style={{ marginTop: 6 }}>
+              No assignments yet.
+            </div>
+          ) : (
+            assignments.map((a, idx) => (
+              <div key={idx} className="small" style={{ marginTop: 6 }}>
+                {a.name}: {a.score}/{a.maxScore}
+              </div>
+            ))
+          )}
+        </div>
+      );
+    });
   };
 
   return (
     <div className="app-container">
-      <div className="card" style={{ maxWidth: 480 }}>
+      <div className="card" style={{ maxWidth: 640 }}>
         <Toasts />
         <div className="card-header">
-          <h2>Student Signup</h2>
-          <div className="muted">Use the invite you received to complete signup. Email must match invite.</div>
+          <h2>Student Dashboard</h2>
+          <div className="muted">
+            Welcome, {renderName()}
+            {profile?.studentId ? ` • Student ID: ${profile.studentId}` : ""}
+          </div>
         </div>
 
         <div className="section">
-          <input
-            className="input"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-
-          <input
-            className="input"
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ marginTop: 10 }}
-          />
-
-          <input
-            className="input"
-            placeholder="Invite ID"
-            value={inviteId}
-            readOnly
-            style={{ marginTop: 10, backgroundColor: '#f8f7f4' }}
-          />
-
-          <button className="btn btn-primary" onClick={(e) => { const icon = e.currentTarget.querySelector('.icon'); if (icon) { icon.classList.add('pulse'); setTimeout(() => icon.classList.remove('pulse'), 260); } handleSignup(); }} style={{ marginTop: 12 }}>
-            <CheckIcon className="icon"/> Sign Up
-          </button>
+          {loading ? <div>Loading grades...</div> : renderGrades()}
         </div>
       </div>
     </div>
