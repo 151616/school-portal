@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from "react";
+import { Routes, Route } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./firebase";
 import { ref, onValue } from "firebase/database";
 import { db } from "./firebase";
 
 import Login from "./Login.jsx";
+import Signup from "./Signup.jsx";
 import TeacherDashboard from "./TeacherDashboard.jsx";
 import StudentDashboard from "./StudentDashboard.jsx";
 import AdminDashboard from "./AdminDashboard.jsx"; // optional for admins
 import { LogoutIcon } from "./icons";
 
-export default function App() {
+function AppShell() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null); // teacher, student, or admin
   const [loading, setLoading] = useState(true);
@@ -85,5 +87,14 @@ export default function App() {
       {role === "student" && <StudentDashboard user={user} />}
       {role === "admin" && <AdminDashboard user={user} />}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/signup" element={<Signup />} />
+      <Route path="*" element={<AppShell />} />
+    </Routes>
   );
 }

@@ -122,10 +122,10 @@ export default function AdminDashboard() {
       console.error('Error reading /Users:', err);
     }
 
-    // Test write to diagnostics
+    // Test write to diagnostics (user-scoped path allowed by rules)
     let diagWriteErr = null;
     try {
-      const diagRef = push(ref(db, 'diagnostics/testWrite'));
+      const diagRef = ref(db, `Users/${uid}/_diagnostics_test`);
       await set(diagRef, { ts: Date.now(), by: uid });
       await set(diagRef, null);
     } catch (err) {
