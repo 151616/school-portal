@@ -52,7 +52,7 @@ body {
 .card-header h2 { margin: 0; font-size: 1.5rem; color: var(--text); }
 .card-header .muted { margin-top: 6px; color: var(--muted); font-size: 0.95rem; }
 
-.form-row { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.form-row { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; flex-wrap: wrap; }
 .input, .select {
   padding: 10px 12px;
   border-radius: 8px;
@@ -63,6 +63,11 @@ body {
   min-height: 40px;
 }
 .input { flex: 1 1 260px; }
+.autocomplete { position: relative; flex: 1 1 260px; z-index: 5; }
+.autocomplete .input { width: 100%; }
+.enroll-row { align-items: flex-start; }
+.enroll-field { position: relative; flex: 1 1 320px; z-index: 1; }
+.enroll-field:focus-within { z-index: 20; }
 .select {
   width: 160px;
   appearance: none;
@@ -79,6 +84,44 @@ body {
   outline: none;
   border-color: #e2d6c5;
   box-shadow: 0 0 0 3px rgba(226, 214, 197, 0.35);
+}
+
+/* Autocomplete dropdown (warm + professional) */
+.autocomplete-menu {
+  position: absolute;
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid #f0ede7;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(45,45,45,0.08);
+  max-height: 260px;
+  overflow: auto;
+  z-index: 60;
+  min-width: 320px;
+  width: 100%;
+}
+.autocomplete-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+}
+.autocomplete-item:hover,
+.autocomplete-item.active {
+  background: #fbf9f6;
+}
+.autocomplete-primary {
+  color: var(--text);
+  font-weight: 600;
+}
+.autocomplete-secondary {
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .btn { border-radius: 8px; padding: 10px 14px; border: 1px solid transparent; cursor: pointer; font-weight: 700; }

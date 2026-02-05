@@ -83,24 +83,44 @@ export default function AdminDashboard() {
   const [classId, setClassId] = useState("");
   const [className, setClassName] = useState("");
   const [classTeacherUid, setClassTeacherUid] = useState("");
+  const [classTeacherQuery, setClassTeacherQuery] = useState("");
+  const [showClassTeacherSuggestions, setShowClassTeacherSuggestions] = useState(false);
   const [enrollClassId, setEnrollClassId] = useState("");
-  const [enrollStudentId, setEnrollStudentId] = useState("");
+  const [enrollClassQuery, setEnrollClassQuery] = useState("");
+  const [enrollStudentQuery, setEnrollStudentQuery] = useState("");
+  const [enrollStudentSelectedUid, setEnrollStudentSelectedUid] = useState("");
+  const [showEnrollSuggestions, setShowEnrollSuggestions] = useState(false);
+  const [showEnrollClassSuggestions, setShowEnrollClassSuggestions] = useState(false);
+  const [enrollStudentActive, setEnrollStudentActive] = useState(-1);
   const [activePage, setActivePage] = useState("users");
+  const [userSection, setUserSection] = useState("students");
   const [bulkStudentId, setBulkStudentId] = useState("");
   const [bulkSelectedClasses, setBulkSelectedClasses] = useState({});
+  const [bulkClassQuery, setBulkClassQuery] = useState("");
+  const [showBulkClassSuggestions, setShowBulkClassSuggestions] = useState(false);
   const [multiEnrollMode, setMultiEnrollMode] = useState("class");
   const [multiEnrollClassId, setMultiEnrollClassId] = useState("");
+  const [multiEnrollClassQuery, setMultiEnrollClassQuery] = useState("");
   const [multiEnrollTeacherUid, setMultiEnrollTeacherUid] = useState("");
+  const [multiEnrollTeacherQuery, setMultiEnrollTeacherQuery] = useState("");
   const [multiSelectedStudents, setMultiSelectedStudents] = useState({});
-  const [multiStudentSearch, setMultiStudentSearch] = useState("");
-  const [multiTeacherSearch, setMultiTeacherSearch] = useState("");
-  const [multiStudentLimit, setMultiStudentLimit] = useState(50);
+  const [multiStudentQuery, setMultiStudentQuery] = useState("");
+  const [showMultiStudentSuggestions, setShowMultiStudentSuggestions] = useState(false);
+  const [showMultiClassSuggestions, setShowMultiClassSuggestions] = useState(false);
+  const [showMultiTeacherSuggestions, setShowMultiTeacherSuggestions] = useState(false);
+  const [multiStudentActive, setMultiStudentActive] = useState(-1);
   const [rosterClassId, setRosterClassId] = useState("");
+  const [rosterClassQuery, setRosterClassQuery] = useState("");
+  const [showRosterClassSuggestions, setShowRosterClassSuggestions] = useState(false);
   const [moveTargets, setMoveTargets] = useState({});
   const [rosterSearch, setRosterSearch] = useState("");
   const [rosterLimit, setRosterLimit] = useState(50);
   const [rosterSelected, setRosterSelected] = useState({});
   const [rosterBulkTarget, setRosterBulkTarget] = useState("");
+  const [userLimits, setUserLimits] = useState({ students: 50, teachers: 50, admins: 50 });
+  const [classListLimit, setClassListLimit] = useState(50);
+  const [userSort, setUserSort] = useState("email");
+  const [classSort, setClassSort] = useState("id");
 
   // Diagnostics UI state
   const [diagnostics, setDiagnostics] = useState({
@@ -263,6 +283,230 @@ export default function AdminDashboard() {
     return name ? `${name} — ${u.email}` : u.email;
   };
 
+  const formatStudentLabel = (u) => {
+    const first = u.firstName || "";
+    const lastInitial = u.lastInitial ? `${u.lastInitial}.` : "";
+    const name = `${first} ${lastInitial}`.trim();
+    const id = u.studentId ? `• ${u.studentId}` : "";
+    return name ? `${name} — ${u.email} ${id}`.trim() : `${u.email} ${id}`.trim();
+  };
+
+  const formatClassLabel = (c) => `${c.id} — ${c.name || "Untitled"}`;
+
+  const filteredEnrollClasses = classes.filter((c) => {
+    const q = enrollClassQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      c.id.toLowerCase().includes(q) ||
+      String(c.name || "").toLowerCase().includes(q)
+    );
+  }).slice(0, 200);
+
+  const filteredEnrollStudents = users
+    .filter((u) => (u.role || "").toLowerCase() === "student")
+    .filter((u) => {
+      const q = enrollStudentQuery.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        String(u.email || "").toLowerCase().includes(q) ||
+        String(u.studentId || "").toLowerCase().includes(q) ||
+        String(u.firstName || "").toLowerCase().includes(q) ||
+        String(u.lastInitial || "").toLowerCase().includes(q)
+      );
+    })
+    .slice(0, 200);
+
+  const filteredMultiStudents = users
+    .filter((u) => (u.role || "").toLowerCase() === "student")
+    .filter((u) => {
+      const q = multiStudentQuery.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        String(u.email || "").toLowerCase().includes(q) ||
+        String(u.studentId || "").toLowerCase().includes(q) ||
+        String(u.firstName || "").toLowerCase().includes(q) ||
+        String(u.lastInitial || "").toLowerCase().includes(q)
+      );
+    })
+    .filter((u) => !multiSelectedStudents[u.uid])
+    .slice(0, 200);
+
+  const filteredMultiTeachers = users
+    .filter((u) => (u.role || "").toLowerCase() === "teacher")
+    .filter((u) => {
+      const q = multiEnrollTeacherQuery.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        String(u.email || "").toLowerCase().includes(q) ||
+        String(u.firstName || "").toLowerCase().includes(q) ||
+        String(u.lastInitial || "").toLowerCase().includes(q)
+      );
+    })
+    .slice(0, 200);
+
+  const filteredClassTeachers = users
+    .filter((u) => (u.role || "").toLowerCase() === "teacher")
+    .filter((u) => {
+      const q = classTeacherQuery.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        String(u.email || "").toLowerCase().includes(q) ||
+        String(u.firstName || "").toLowerCase().includes(q) ||
+        String(u.lastInitial || "").toLowerCase().includes(q)
+      );
+    })
+    .slice(0, 200);
+
+  const filteredMultiClasses = classes.filter((c) => {
+    const q = multiEnrollClassQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      c.id.toLowerCase().includes(q) ||
+      String(c.name || "").toLowerCase().includes(q)
+    );
+  }).slice(0, 200);
+
+  const filteredBulkClasses = classes.filter((c) => {
+    const q = bulkClassQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      c.id.toLowerCase().includes(q) ||
+      String(c.name || "").toLowerCase().includes(q)
+    );
+  }).slice(0, 200);
+
+  const filteredRosterClasses = classes.filter((c) => {
+    const q = rosterClassQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      c.id.toLowerCase().includes(q) ||
+      String(c.name || "").toLowerCase().includes(q)
+    );
+  }).slice(0, 200);
+
+  const sortClasses = (list) => {
+    const sorted = [...list];
+    if (classSort === "name") {
+      sorted.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    } else if (classSort === "teacher") {
+      sorted.sort((a, b) => String(a.teacherUid || "").localeCompare(String(b.teacherUid || "")));
+    } else {
+      sorted.sort((a, b) => String(a.id || "").localeCompare(String(b.id || "")));
+    }
+    return sorted;
+  };
+
+  const visibleClasses = sortClasses(classes).slice(0, classListLimit);
+
+  const resolveStudentFromQuery = () => {
+    if (enrollStudentSelectedUid) {
+      const selected = users.find((u) => u.uid === enrollStudentSelectedUid);
+      if (selected) return { student: selected };
+    }
+    const q = enrollStudentQuery.trim().toLowerCase();
+    if (!q) return { student: null, reason: "empty" };
+
+    const exact = users.filter((u) => (u.role || "").toLowerCase() === "student")
+      .filter((u) => {
+        const email = String(u.email || "").toLowerCase();
+        const id = String(u.studentId || "").toLowerCase();
+        const label = formatStudentLabel(u).toLowerCase();
+        return q === email || q === id || q === label;
+      });
+
+    if (exact.length === 1) return { student: exact[0] };
+    if (exact.length > 1) return { student: null, reason: "ambiguous" };
+
+    const matches = filteredEnrollStudents;
+    if (matches.length === 1) return { student: matches[0] };
+    if (matches.length > 1) return { student: null, reason: "ambiguous" };
+    return { student: null, reason: "not_found" };
+  };
+
+  const resolveClassFromQuery = () => {
+    if (enrollClassId) {
+      const selected = classes.find((c) => c.id === enrollClassId);
+      if (selected) return { classId: selected.id };
+    }
+    const q = enrollClassQuery.trim().toLowerCase();
+    if (!q) return { classId: null, reason: "empty" };
+    const exact = classes.filter((c) => {
+      const id = c.id.toLowerCase();
+      const name = String(c.name || "").toLowerCase();
+      const label = formatClassLabel(c).toLowerCase();
+      return q === id || q === name || q === label;
+    });
+    if (exact.length === 1) return { classId: exact[0].id };
+    if (exact.length > 1) return { classId: null, reason: "ambiguous" };
+    if (filteredEnrollClasses.length === 1) return { classId: filteredEnrollClasses[0].id };
+    if (filteredEnrollClasses.length > 1) return { classId: null, reason: "ambiguous" };
+    return { classId: null, reason: "not_found" };
+  };
+
+  const resolveClassTeacherFromQuery = () => {
+    if (classTeacherUid) {
+      const selected = users.find((u) => u.uid === classTeacherUid);
+      if (selected) return { teacherUid: selected.uid };
+    }
+    const q = classTeacherQuery.trim().toLowerCase();
+    if (!q) return { teacherUid: null, reason: "empty" };
+    const matches = filteredClassTeachers;
+    if (matches.length === 1) return { teacherUid: matches[0].uid };
+    if (matches.length > 1) return { teacherUid: null, reason: "ambiguous" };
+    return { teacherUid: null, reason: "not_found" };
+  };
+
+  const resolveMultiClassFromQuery = () => {
+    if (multiEnrollClassId) {
+      const selected = classes.find((c) => c.id === multiEnrollClassId);
+      if (selected) return { classId: selected.id };
+    }
+    const q = multiEnrollClassQuery.trim().toLowerCase();
+    if (!q) return { classId: null, reason: "empty" };
+    if (filteredMultiClasses.length === 1) return { classId: filteredMultiClasses[0].id };
+    if (filteredMultiClasses.length > 1) return { classId: null, reason: "ambiguous" };
+    return { classId: null, reason: "not_found" };
+  };
+
+  const resolveMultiTeacherFromQuery = () => {
+    if (multiEnrollTeacherUid) {
+      const selected = users.find((u) => u.uid === multiEnrollTeacherUid);
+      if (selected) return { teacherUid: selected.uid };
+    }
+    const q = multiEnrollTeacherQuery.trim().toLowerCase();
+    if (!q) return { teacherUid: null, reason: "empty" };
+    if (filteredMultiTeachers.length === 1) return { teacherUid: filteredMultiTeachers[0].uid };
+    if (filteredMultiTeachers.length > 1) return { teacherUid: null, reason: "ambiguous" };
+    return { teacherUid: null, reason: "not_found" };
+  };
+
+  const sortUsers = (list) => {
+    const sorted = [...list];
+    if (userSort === "name") {
+      sorted.sort((a, b) => {
+        const an = `${a.firstName || ""} ${a.lastInitial || ""}`.trim().toLowerCase();
+        const bn = `${b.firstName || ""} ${b.lastInitial || ""}`.trim().toLowerCase();
+        return an.localeCompare(bn) || String(a.email || "").localeCompare(String(b.email || ""));
+      });
+    } else if (userSort === "studentId") {
+      sorted.sort((a, b) => String(a.studentId || "").localeCompare(String(b.studentId || "")));
+    } else {
+      sorted.sort((a, b) => String(a.email || "").localeCompare(String(b.email || "")));
+    }
+    return sorted;
+  };
+
+  const userStudents = sortUsers(filteredUsers.filter((u) => (u.role || "").toLowerCase() === "student"));
+  const userTeachers = sortUsers(filteredUsers.filter((u) => (u.role || "").toLowerCase() === "teacher"));
+  const userAdmins = sortUsers(filteredUsers.filter((u) => (u.role || "").toLowerCase() === "admin"));
+  const visibleStudents = userStudents.slice(0, userLimits.students);
+  const visibleTeachers = userTeachers.slice(0, userLimits.teachers);
+  const visibleAdmins = userAdmins.slice(0, userLimits.admins);
+
+  const inviteStudents = filteredInvites.filter((i) => !i.used && (i.role || "").toLowerCase() === "student");
+  const inviteTeachers = filteredInvites.filter((i) => !i.used && (i.role || "").toLowerCase() === "teacher");
+  const inviteAdmins = filteredInvites.filter((i) => !i.used && (i.role || "").toLowerCase() === "admin");
+
   const rosterClass = classes.find((c) => c.id === rosterClassId) || null;
   const rosterStudents = rosterClass && rosterClass.students
     ? Object.values(rosterClass.students)
@@ -314,10 +558,10 @@ export default function AdminDashboard() {
     }
 
     const student = users.find((u) => u.uid === uid);
-    if (!student) {
-      addToast("error", "Student not found");
-      return;
-    }
+      if (!student) {
+        addToast("error", "Student not found");
+        return;
+      }
 
     try {
       await set(ref(db, `classes/${targetClassId}/students/${uid}`), {
@@ -409,45 +653,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const filteredStudentsForMulti = users
-    .filter((u) => (u.role || "").toLowerCase() === "student")
-    .filter((u) => {
-      const q = multiStudentSearch.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        String(u.email || "").toLowerCase().includes(q) ||
-        String(u.studentId || "").toLowerCase().includes(q) ||
-        String(u.firstName || "").toLowerCase().includes(q) ||
-        String(u.lastInitial || "").toLowerCase().includes(q)
-      );
-    })
-    .slice(0, multiStudentLimit);
-
-  const totalFilteredStudentCount = users
-    .filter((u) => (u.role || "").toLowerCase() === "student")
-    .filter((u) => {
-      const q = multiStudentSearch.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        String(u.email || "").toLowerCase().includes(q) ||
-        String(u.studentId || "").toLowerCase().includes(q) ||
-        String(u.firstName || "").toLowerCase().includes(q) ||
-        String(u.lastInitial || "").toLowerCase().includes(q)
-      );
-    }).length;
-
-  const filteredTeachersForMulti = users
-    .filter((u) => (u.role || "").toLowerCase() === "teacher")
-    .filter((u) => {
-      const q = multiTeacherSearch.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        String(u.email || "").toLowerCase().includes(q) ||
-        String(u.firstName || "").toLowerCase().includes(q) ||
-        String(u.lastInitial || "").toLowerCase().includes(q)
-      );
-    })
-    .slice(0, 100);
 
   // Load existing users and invites
   useEffect(() => {
@@ -475,6 +680,32 @@ export default function AdminDashboard() {
       unsubscribeClasses();
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("admin_user_limits");
+      if (saved) setUserLimits(JSON.parse(saved));
+      const savedClass = localStorage.getItem("admin_class_limit");
+      if (savedClass) setClassListLimit(Number(savedClass));
+      const savedUserSort = localStorage.getItem("admin_user_sort");
+      if (savedUserSort) setUserSort(savedUserSort);
+      const savedClassSort = localStorage.getItem("admin_class_sort");
+      if (savedClassSort) setClassSort(savedClassSort);
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("admin_user_limits", JSON.stringify(userLimits));
+      localStorage.setItem("admin_class_limit", String(classListLimit));
+      localStorage.setItem("admin_user_sort", userSort);
+      localStorage.setItem("admin_class_sort", classSort);
+    } catch {
+      // ignore storage errors
+    }
+  }, [userLimits, classListLimit, userSort, classSort]);
 
 
 
@@ -578,8 +809,11 @@ export default function AdminDashboard() {
       addToast("error", "Enter a class name");
       return;
     }
-    if (!classTeacherUid) {
-      addToast("error", "Select a teacher");
+    const { teacherUid, reason } = resolveClassTeacherFromQuery();
+    if (!teacherUid) {
+      if (reason === "empty") addToast("error", "Select a teacher");
+      else if (reason === "ambiguous") addToast("error", "Multiple teachers match — type more");
+      else addToast("error", "Teacher not found");
       return;
     }
 
@@ -594,16 +828,17 @@ export default function AdminDashboard() {
 
       await set(classRef, {
         name: className.trim(),
-        teacherUid: classTeacherUid,
+        teacherUid,
         createdAt: Date.now(),
       });
 
-      await set(ref(db, `teachers/${classTeacherUid}/classes/${id}`), true);
+      await set(ref(db, `teachers/${teacherUid}/classes/${id}`), true);
 
       addToast("success", "Class created");
       setClassId("");
       setClassName("");
       setClassTeacherUid("");
+      setClassTeacherQuery("");
     } catch (err) {
       console.error("Error creating class:", err);
       addToast("error", "Error creating class: " + (err.message || err));
@@ -611,28 +846,29 @@ export default function AdminDashboard() {
   };
 
   const handleEnrollStudent = async () => {
-    if (!enrollClassId) {
-      addToast("error", "Select a class");
+    const { classId: resolvedClassId, reason: classReason } = resolveClassFromQuery();
+    if (!resolvedClassId) {
+      if (classReason === "empty") addToast("error", "Select a class");
+      else if (classReason === "ambiguous") addToast("error", "Multiple classes match — type more");
+      else addToast("error", "Class not found");
       return;
     }
-    if (!enrollStudentId.trim()) {
-      addToast("error", "Enter a student ID");
-      return;
-    }
-
-    const student = users.find(
-      (u) =>
-        (u.role || "").toLowerCase() === "student" &&
-        String(u.studentId || "").trim() === enrollStudentId.trim()
-    );
-
+    const { student, reason } = resolveStudentFromQuery();
     if (!student) {
-      addToast("error", "Student ID not found");
+      if (reason === "empty") addToast("error", "Type a student name, email, or ID");
+      else if (reason === "ambiguous") addToast("error", "Multiple matches — type more to narrow it down");
+      else addToast("error", "Student not found");
+      return;
+    }
+
+    const classObj = classes.find((c) => c.id === resolvedClassId);
+    if (classObj && classObj.students && classObj.students[student.uid]) {
+      addToast("error", "Student is already enrolled in this class");
       return;
     }
 
     try {
-      const studentRef = ref(db, `classes/${enrollClassId}/students/${student.uid}`);
+      const studentRef = ref(db, `classes/${resolvedClassId}/students/${student.uid}`);
       await set(studentRef, {
         uid: student.uid,
         email: student.email || "",
@@ -641,7 +877,11 @@ export default function AdminDashboard() {
         studentId: student.studentId || "",
       });
       addToast("success", "Student enrolled");
-      setEnrollStudentId("");
+      setEnrollStudentQuery("");
+      setEnrollClassQuery("");
+      setEnrollClassId("");
+      setEnrollStudentSelectedUid("");
+      setShowEnrollSuggestions(false);
     } catch (err) {
       console.error("Error enrolling student:", err);
       addToast("error", "Error enrolling student: " + (err.message || err));
@@ -675,8 +915,17 @@ export default function AdminDashboard() {
     }
 
     try {
-      await Promise.all(
-        classIds.map((id) =>
+      let skipped = 0;
+      const writes = classIds
+        .filter((id) => {
+          const c = classes.find((x) => x.id === id);
+          if (c && c.students && c.students[student.uid]) {
+            skipped += 1;
+            return false;
+          }
+          return true;
+        })
+        .map((id) =>
           set(ref(db, `classes/${id}/students/${student.uid}`), {
             uid: student.uid,
             email: student.email || "",
@@ -684,9 +933,17 @@ export default function AdminDashboard() {
             lastInitial: student.lastInitial || "",
             studentId: student.studentId || "",
           })
-        )
-      );
-      addToast("success", "Student enrolled in selected classes");
+        );
+      if (writes.length > 0) {
+        await Promise.all(writes);
+      }
+      if (skipped > 0 && writes.length > 0) {
+        addToast("info", `Enrolled in ${writes.length} classes, skipped ${skipped} already enrolled`);
+      } else if (skipped > 0 && writes.length === 0) {
+        addToast("error", "Student already enrolled in all selected classes");
+      } else {
+        addToast("success", "Student enrolled in selected classes");
+      }
       setBulkStudentId("");
       setBulkSelectedClasses({});
     } catch (err) {
@@ -707,18 +964,24 @@ export default function AdminDashboard() {
 
     let targetClassIds = [];
     if (multiEnrollMode === "class") {
-      if (!multiEnrollClassId) {
-        addToast("error", "Select a class");
+      const { classId, reason } = resolveMultiClassFromQuery();
+      if (!classId) {
+        if (reason === "empty") addToast("error", "Select a class");
+        else if (reason === "ambiguous") addToast("error", "Multiple classes match — type more");
+        else addToast("error", "Class not found");
         return;
       }
-      targetClassIds = [multiEnrollClassId];
+      targetClassIds = [classId];
     } else {
-      if (!multiEnrollTeacherUid) {
-        addToast("error", "Select a teacher");
+      const { teacherUid, reason } = resolveMultiTeacherFromQuery();
+      if (!teacherUid) {
+        if (reason === "empty") addToast("error", "Select a teacher");
+        else if (reason === "ambiguous") addToast("error", "Multiple teachers match — type more");
+        else addToast("error", "Teacher not found");
         return;
       }
       targetClassIds = classes
-        .filter((c) => c.teacherUid === multiEnrollTeacherUid)
+        .filter((c) => c.teacherUid === teacherUid)
         .map((c) => c.id);
       if (targetClassIds.length === 0) {
         addToast("error", "No classes found for that teacher");
@@ -735,8 +998,14 @@ export default function AdminDashboard() {
 
     try {
       const writes = [];
+      let skipped = 0;
       targetClassIds.forEach((classId) => {
         selectedStudentUids.forEach((uid) => {
+          const c = classes.find((x) => x.id === classId);
+          if (c && c.students && c.students[uid]) {
+            skipped += 1;
+            return;
+          }
           const student = studentMap[uid];
           if (!student) return;
           writes.push(
@@ -751,8 +1020,16 @@ export default function AdminDashboard() {
         });
       });
 
-      await Promise.all(writes);
-      addToast("success", "Students enrolled");
+      if (writes.length > 0) {
+        await Promise.all(writes);
+      }
+      if (skipped > 0 && writes.length > 0) {
+        addToast("info", `Enrolled ${writes.length}, skipped ${skipped} already enrolled`);
+      } else if (skipped > 0 && writes.length === 0) {
+        addToast("error", "All selected students are already enrolled");
+      } else {
+        addToast("success", "Students enrolled");
+      }
       setMultiSelectedStudents({});
     } catch (err) {
       console.error("Error enrolling students:", err);
@@ -839,7 +1116,7 @@ export default function AdminDashboard() {
               className={`btn ${activePage === "users" ? "btn-primary" : "btn-ghost"}`}
               onClick={() => setActivePage("users")}
             >
-              Users & Invites
+              Users
             </button>
             <button
               className={`btn ${activePage === "classes" ? "btn-primary" : "btn-ghost"}`}
@@ -852,6 +1129,28 @@ export default function AdminDashboard() {
 
         {activePage === "users" && (
           <>
+            <div className="section">
+              <div className="form-row">
+                <button
+                  className={`btn ${userSection === "students" ? "btn-primary" : "btn-ghost"}`}
+                  onClick={() => { setUserSection("students"); setRole("student"); }}
+                >
+                  Students
+                </button>
+                <button
+                  className={`btn ${userSection === "teachers" ? "btn-primary" : "btn-ghost"}`}
+                  onClick={() => { setUserSection("teachers"); setRole("teacher"); }}
+                >
+                  Teachers
+                </button>
+                <button
+                  className={`btn ${userSection === "admins" ? "btn-primary" : "btn-ghost"}`}
+                  onClick={() => { setUserSection("admins"); setRole("admin"); }}
+                >
+                  Admins
+                </button>
+              </div>
+            </div>
             {/* Add Invite */}
             <div className="section">
               <div className="instructions">Tip: Enter an email and choose a role. Student IDs are generated automatically and checked for uniqueness.</div>
@@ -866,9 +1165,9 @@ export default function AdminDashboard() {
                 />
 
                 <select className="select" value={role} onChange={(e) => setRole(e.target.value)}>
-                  <option value="student">Student</option>
-                  <option value="teacher">Teacher</option>
-                  <option value="admin">Admin</option>
+                  {userSection === "students" && <option value="student">Student</option>}
+                  {userSection === "teachers" && <option value="teacher">Teacher</option>}
+                  {userSection === "admins" && <option value="admin">Admin</option>}
                 </select>
 
                 <button className="btn btn-primary" onClick={(e) => { const btn = e.currentTarget; btn.classList.add('pulse'); setTimeout(() => btn.classList.remove('pulse'), 260); handleAddUser(); }} disabled={loading}>
@@ -907,6 +1206,7 @@ export default function AdminDashboard() {
               <h3>Classes</h3>
               <div className="small">Create classes, assign a teacher, and enroll students by Student ID.</div>
 
+              <div className="small" style={{ marginTop: 16 }}>Enrollment</div>
               <div className="form-row" style={{ marginTop: 8 }}>
                 <input
                   className="input"
@@ -922,55 +1222,190 @@ export default function AdminDashboard() {
                   value={className}
                   onChange={(e) => setClassName(e.target.value)}
                 />
-                <select
-                  className="select"
-                  value={classTeacherUid}
-                  onChange={(e) => setClassTeacherUid(e.target.value)}
-                >
-                  <option value="">Select teacher</option>
-                  {users
-                    .filter((u) => (u.role || "").toLowerCase() === "teacher")
-                    .map((u) => (
-                      <option key={u.uid} value={u.uid}>
-                        {formatTeacherLabel(u)}
-                      </option>
-                    ))}
-                </select>
+                <div className="autocomplete">
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Select teacher (name or email)"
+                    value={classTeacherQuery}
+                    onChange={(e) => {
+                      setClassTeacherQuery(e.target.value);
+                      setClassTeacherUid("");
+                      setShowClassTeacherSuggestions(true);
+                    }}
+                    onFocus={() => setShowClassTeacherSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowClassTeacherSuggestions(false), 120)}
+                  />
+                  {showClassTeacherSuggestions && filteredClassTeachers.length > 0 && (
+                    <div className="autocomplete-menu" role="listbox">
+                      {filteredClassTeachers.map((u) => (
+                        <button
+                          key={u.uid}
+                          type="button"
+                          className="autocomplete-item"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setClassTeacherQuery(formatTeacherLabel(u));
+                            setClassTeacherUid(u.uid);
+                            setShowClassTeacherSuggestions(false);
+                          }}
+                        >
+                          <span className="autocomplete-primary">
+                            {u.firstName || "Teacher"} {u.lastInitial ? `${u.lastInitial}.` : ""}
+                          </span>
+                          <span className="autocomplete-secondary">{u.email}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="form-row" style={{ marginTop: 8 }}>
                 <button className="btn btn-primary" onClick={handleCreateClass}>
                   Create Class
                 </button>
               </div>
 
+              <div className="section">
+                <div className="small">Classes List</div>
+                {classes.length === 0 ? (
+                  <div className="small" style={{ marginTop: 6 }}>No classes yet.</div>
+                ) : (
+                  <ul className="card-list" style={{ marginTop: 8 }}>
+                    {visibleClasses.map((c) => (
+                      <li key={c.id}>
+                        <div>
+                          <div>{c.id}</div>
+                          <div className="meta">{c.name || "Untitled"}</div>
+                        </div>
+                        <div className="small">
+                          {c.teacherUid ? `Teacher UID: ${c.teacherUid}` : "No teacher"}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {classes.length > visibleClasses.length && (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => setClassListLimit((n) => n + 50)}
+                  >
+                    Show more ({visibleClasses.length}/{classes.length})
+                  </button>
+                )}
+              </div>
+
+              <div className="small" style={{ marginTop: 16 }}>Enrollment</div>
+              <div className="form-row enroll-row" style={{ marginTop: 8 }}>
+                <div className="autocomplete enroll-field">
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Select class (type to filter)"
+                    value={enrollClassQuery}
+                    onChange={(e) => {
+                      setEnrollClassQuery(e.target.value);
+                      setEnrollClassId("");
+                      setShowEnrollClassSuggestions(true);
+                    }}
+                    onFocus={() => setShowEnrollClassSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowEnrollClassSuggestions(false), 120)}
+                  />
+                  {showEnrollClassSuggestions && filteredEnrollClasses.length > 0 && (
+                    <div className="autocomplete-menu" role="listbox">
+                      {filteredEnrollClasses.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="autocomplete-item"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setEnrollClassQuery(formatClassLabel(c));
+                            setEnrollClassId(c.id);
+                            setShowEnrollClassSuggestions(false);
+                          }}
+                        >
+                          <span className="autocomplete-primary">{c.id}</span>
+                          <span className="autocomplete-secondary">{c.name || "Untitled"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="autocomplete enroll-field">
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Start typing a student (name, email, ID)"
+                    value={enrollStudentQuery}
+                    onChange={(e) => {
+                      setEnrollStudentQuery(e.target.value);
+                      setEnrollStudentSelectedUid("");
+                      setShowEnrollSuggestions(true);
+                      setEnrollStudentActive(-1);
+                    }}
+                    onFocus={() => setShowEnrollSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowEnrollSuggestions(false), 120)}
+                    onKeyDown={(e) => {
+                      if (!showEnrollSuggestions || filteredEnrollStudents.length === 0) return;
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setEnrollStudentActive((i) =>
+                          i < filteredEnrollStudents.length - 1 ? i + 1 : 0
+                        );
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setEnrollStudentActive((i) =>
+                          i > 0 ? i - 1 : filteredEnrollStudents.length - 1
+                        );
+                      } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        const idx = enrollStudentActive;
+                        const u =
+                          idx >= 0 ? filteredEnrollStudents[idx] : filteredEnrollStudents[0];
+                        if (u) {
+                          setEnrollStudentQuery(formatStudentLabel(u));
+                          setEnrollStudentSelectedUid(u.uid);
+                          setShowEnrollSuggestions(false);
+                        }
+                      }
+                    }}
+                  />
+                  {showEnrollSuggestions && filteredEnrollStudents.length > 0 && (
+                    <div className="autocomplete-menu" role="listbox">
+                      {filteredEnrollStudents.map((u, idx) => (
+                        <button
+                          key={u.uid}
+                          type="button"
+                          className={`autocomplete-item${enrollStudentActive === idx ? " active" : ""}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setEnrollStudentQuery(formatStudentLabel(u));
+                            setEnrollStudentSelectedUid(u.uid);
+                            setShowEnrollSuggestions(false);
+                          }}
+                        >
+                          <span className="autocomplete-primary">
+                            {u.firstName || "Student"} {u.lastInitial ? `${u.lastInitial}.` : ""}
+                          </span>
+                          <span className="autocomplete-secondary">
+                            {u.email} {u.studentId ? `• ${u.studentId}` : ""}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="form-row" style={{ marginTop: 8 }}>
-                <select
-                  className="select"
-                  value={enrollClassId}
-                  onChange={(e) => setEnrollClassId(e.target.value)}
-                >
-                  <option value="">Select class</option>
-                  {classes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.id} — {c.name || "Untitled"}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  className="input"
-                  type="text"
-                  placeholder="Student ID (6 digits)"
-                  value={enrollStudentId}
-                  onChange={(e) => setEnrollStudentId(e.target.value)}
-                />
                 <button className="btn btn-ghost" onClick={handleEnrollStudent}>
                   Enroll Student
                 </button>
               </div>
-            </div>
 
-            {/* Bulk enroll */}
-            <div className="section">
-              <h3>Bulk Enroll</h3>
-              <div className="small">Pick a student once, then select multiple classes to enroll at once.</div>
+              <div style={{ marginTop: 16 }}>
+                <div className="small">Bulk Enroll (one student → many classes)</div>
+                <div className="small">Pick a student once, then select multiple classes to enroll at once.</div>
               <div className="form-row" style={{ marginTop: 8 }}>
                 <input
                   className="input"
@@ -981,37 +1416,79 @@ export default function AdminDashboard() {
                 />
               </div>
 
+              <div className="form-row" style={{ marginTop: 8 }}>
+                <div className="autocomplete">
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Add class (type to filter)"
+                    value={bulkClassQuery}
+                    onChange={(e) => {
+                      setBulkClassQuery(e.target.value);
+                      setShowBulkClassSuggestions(true);
+                    }}
+                    onFocus={() => setShowBulkClassSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowBulkClassSuggestions(false), 120)}
+                  />
+                  {showBulkClassSuggestions && filteredBulkClasses.length > 0 && (
+                    <div className="autocomplete-menu" role="listbox">
+                      {filteredBulkClasses.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="autocomplete-item"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setBulkSelectedClasses((prev) => ({ ...prev, [c.id]: true }));
+                            setBulkClassQuery("");
+                            setShowBulkClassSuggestions(false);
+                          }}
+                        >
+                          <span className="autocomplete-primary">{c.id}</span>
+                          <span className="autocomplete-secondary">{c.name || "Untitled"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div style={{ marginTop: 8 }}>
-                {classes.length === 0 ? (
-                  <div className="small">No classes yet.</div>
+                {Object.keys(bulkSelectedClasses).length === 0 ? (
+                  <div className="small">No classes selected yet.</div>
                 ) : (
-                  classes.map((c) => (
-                    <label key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                      <input
-                        type="checkbox"
-                        checked={!!bulkSelectedClasses[c.id]}
-                        onChange={(e) =>
-                          setBulkSelectedClasses((prev) => ({
-                            ...prev,
-                            [c.id]: e.target.checked,
-                          }))
-                        }
-                      />
-                      <span>{c.id} — {c.name || "Untitled"}</span>
-                    </label>
-                  ))
+                  Object.keys(bulkSelectedClasses).map((id) => {
+                    const c = classes.find((x) => x.id === id);
+                    if (!c) return null;
+                    return (
+                      <div key={id} className="small" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <span>{formatClassLabel(c)}</span>
+                        <button
+                          className="btn btn-ghost"
+                          onClick={() =>
+                            setBulkSelectedClasses((prev) => {
+                              const next = { ...prev };
+                              delete next[id];
+                              return next;
+                            })
+                          }
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })
                 )}
               </div>
 
               <button className="btn btn-primary" onClick={handleBulkEnroll} style={{ marginTop: 8 }}>
                 Enroll In Selected Classes
               </button>
-            </div>
+              </div>
 
-            {/* Multi-student enroll */}
-            <div className="section">
-              <h3>Multi-Student Enroll</h3>
-              <div className="small">Select a class or teacher, then enroll multiple students at once.</div>
+              <div style={{ marginTop: 16 }}>
+                <div className="small">Multi-Student Enroll</div>
+                <div className="small">Select a class or teacher, then enroll multiple students at once.</div>
 
               <div className="form-row" style={{ marginTop: 8 }}>
                 <select
@@ -1024,123 +1501,180 @@ export default function AdminDashboard() {
                 </select>
 
                 {multiEnrollMode === "class" ? (
-                  <select
-                    className="select"
-                    value={multiEnrollClassId}
-                    onChange={(e) => setMultiEnrollClassId(e.target.value)}
-                  >
-                    <option value="">Select class</option>
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.id} — {c.name || "Untitled"}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <>
+                  <div className="autocomplete">
                     <input
                       className="input"
                       type="text"
-                      placeholder="Search teacher (name or email)"
-                      value={multiTeacherSearch}
-                      onChange={(e) => setMultiTeacherSearch(e.target.value)}
+                      placeholder="Select class (type to filter)"
+                      value={multiEnrollClassQuery}
+                      onChange={(e) => {
+                        setMultiEnrollClassQuery(e.target.value);
+                        setMultiEnrollClassId("");
+                        setShowMultiClassSuggestions(true);
+                      }}
+                      onFocus={() => setShowMultiClassSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowMultiClassSuggestions(false), 120)}
                     />
-                    <select
-                      className="select"
-                      value={multiEnrollTeacherUid}
-                      onChange={(e) => setMultiEnrollTeacherUid(e.target.value)}
-                    >
-                      <option value="">Select teacher</option>
-                      {filteredTeachersForMulti.map((u) => (
-                        <option key={u.uid} value={u.uid}>
-                          {formatTeacherLabel(u)}
-                        </option>
-                      ))}
-                    </select>
-                  </>
+                    {showMultiClassSuggestions && filteredMultiClasses.length > 0 && (
+                      <div className="autocomplete-menu" role="listbox">
+                        {filteredMultiClasses.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className="autocomplete-item"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setMultiEnrollClassQuery(formatClassLabel(c));
+                              setMultiEnrollClassId(c.id);
+                              setShowMultiClassSuggestions(false);
+                            }}
+                          >
+                            <span className="autocomplete-primary">{c.id}</span>
+                            <span className="autocomplete-secondary">{c.name || "Untitled"}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="autocomplete">
+                    <input
+                      className="input"
+                      type="text"
+                      placeholder="Select teacher (name or email)"
+                      value={multiEnrollTeacherQuery}
+                      onChange={(e) => {
+                        setMultiEnrollTeacherQuery(e.target.value);
+                        setMultiEnrollTeacherUid("");
+                        setShowMultiTeacherSuggestions(true);
+                      }}
+                      onFocus={() => setShowMultiTeacherSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowMultiTeacherSuggestions(false), 120)}
+                    />
+                    {showMultiTeacherSuggestions && filteredMultiTeachers.length > 0 && (
+                      <div className="autocomplete-menu" role="listbox">
+                        {filteredMultiTeachers.map((u) => (
+                          <button
+                            key={u.uid}
+                            type="button"
+                            className="autocomplete-item"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setMultiEnrollTeacherQuery(formatTeacherLabel(u));
+                              setMultiEnrollTeacherUid(u.uid);
+                              setShowMultiTeacherSuggestions(false);
+                            }}
+                          >
+                            <span className="autocomplete-primary">
+                              {u.firstName || "Teacher"} {u.lastInitial ? `${u.lastInitial}.` : ""}
+                            </span>
+                            <span className="autocomplete-secondary">{u.email}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
               <div className="form-row" style={{ marginTop: 8 }}>
-                <input
-                  className="input"
-                  type="text"
-                  placeholder="Search students (email, name, or ID)"
-                  value={multiStudentSearch}
-                  onChange={(e) => {
-                    setMultiStudentSearch(e.target.value);
-                    setMultiStudentLimit(50);
-                  }}
-                />
-                <button
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    const allSelected = filteredStudentsForMulti.every(
-                      (u) => multiSelectedStudents[u.uid]
-                    );
-                    if (allSelected) {
-                      setMultiSelectedStudents((prev) => {
-                        const next = { ...prev };
-                        filteredStudentsForMulti.forEach((u) => {
-                          delete next[u.uid];
-                        });
-                        return next;
-                      });
-                    } else {
-                      setMultiSelectedStudents((prev) => {
-                        const next = { ...prev };
-                        filteredStudentsForMulti.forEach((u) => {
-                          next[u.uid] = true;
-                        });
-                        return next;
-                      });
-                    }
-                  }}
-                  disabled={filteredStudentsForMulti.length === 0}
-                >
-                  {filteredStudentsForMulti.every((u) => multiSelectedStudents[u.uid])
-                    ? "Clear filtered"
-                    : "Select filtered"}
-                </button>
+                <div className="autocomplete">
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Add student (name, email, ID)"
+                    value={multiStudentQuery}
+                    onChange={(e) => {
+                      setMultiStudentQuery(e.target.value);
+                      setShowMultiStudentSuggestions(true);
+                      setMultiStudentActive(-1);
+                    }}
+                    onFocus={() => setShowMultiStudentSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowMultiStudentSuggestions(false), 120)}
+                    onKeyDown={(e) => {
+                      if (!showMultiStudentSuggestions || filteredMultiStudents.length === 0) return;
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setMultiStudentActive((i) =>
+                          i < filteredMultiStudents.length - 1 ? i + 1 : 0
+                        );
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setMultiStudentActive((i) =>
+                          i > 0 ? i - 1 : filteredMultiStudents.length - 1
+                        );
+                      } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        const idx = multiStudentActive;
+                        const u =
+                          idx >= 0 ? filteredMultiStudents[idx] : filteredMultiStudents[0];
+                        if (u) {
+                          setMultiSelectedStudents((prev) => ({ ...prev, [u.uid]: true }));
+                          setMultiStudentQuery("");
+                          setShowMultiStudentSuggestions(false);
+                        }
+                      }
+                    }}
+                  />
+                  {showMultiStudentSuggestions && filteredMultiStudents.length > 0 && (
+                    <div className="autocomplete-menu" role="listbox">
+                      {filteredMultiStudents.map((u, idx) => (
+                        <button
+                          key={u.uid}
+                          type="button"
+                          className={`autocomplete-item${multiStudentActive === idx ? " active" : ""}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setMultiSelectedStudents((prev) => ({ ...prev, [u.uid]: true }));
+                            setMultiStudentQuery("");
+                            setShowMultiStudentSuggestions(false);
+                          }}
+                        >
+                          <span className="autocomplete-primary">
+                            {u.firstName || "Student"} {u.lastInitial ? `${u.lastInitial}.` : ""}
+                          </span>
+                          <span className="autocomplete-secondary">
+                            {u.email} {u.studentId ? `• ${u.studentId}` : ""}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div style={{ marginTop: 8, maxHeight: 260, overflow: "auto" }}>
-                {filteredStudentsForMulti.length === 0 ? (
-                  <div className="small">No students found.</div>
+              <div style={{ marginTop: 8 }}>
+                {Object.keys(multiSelectedStudents).length === 0 ? (
+                  <div className="small">No students selected yet.</div>
                 ) : (
-                  filteredStudentsForMulti.map((u) => (
-                      <label key={u.uid} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                        <input
-                          type="checkbox"
-                          checked={!!multiSelectedStudents[u.uid]}
-                          onChange={(e) =>
-                            setMultiSelectedStudents((prev) => ({
-                              ...prev,
-                              [u.uid]: e.target.checked,
-                            }))
+                  Object.keys(multiSelectedStudents).map((uid) => {
+                    const u = users.find((x) => x.uid === uid);
+                    if (!u) return null;
+                    return (
+                      <div key={uid} className="small" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <span>{formatStudentLabel(u)}</span>
+                        <button
+                          className="btn btn-ghost"
+                          onClick={() =>
+                            setMultiSelectedStudents((prev) => {
+                              const next = { ...prev };
+                              delete next[uid];
+                              return next;
+                            })
                           }
-                        />
-                        <span>
-                          {u.firstName || "Student"} {u.lastInitial ? `${u.lastInitial}.` : ""} — {u.email} {u.studentId ? `• ${u.studentId}` : ""}
-                        </span>
-                      </label>
-                    ))
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })
                 )}
               </div>
-
-              {totalFilteredStudentCount > filteredStudentsForMulti.length && (
-                <button
-                  className="btn btn-ghost"
-                  onClick={() => setMultiStudentLimit((n) => n + 50)}
-                  style={{ marginTop: 6 }}
-                >
-                  Show more ({filteredStudentsForMulti.length}/{totalFilteredStudentCount})
-                </button>
-              )}
 
               <button className="btn btn-primary" onClick={handleMultiEnroll} style={{ marginTop: 8 }}>
                 Enroll Selected Students
               </button>
+              </div>
             </div>
 
             {/* Roster management */}
@@ -1149,23 +1683,44 @@ export default function AdminDashboard() {
               <div className="small">View, remove, or move students between classes.</div>
 
               <div className="form-row" style={{ marginTop: 8 }}>
-                <select
-                  className="select"
-                  value={rosterClassId}
-                  onChange={(e) => {
-                    setRosterClassId(e.target.value);
-                    setRosterSelected({});
-                    setRosterSearch("");
-                    setRosterLimit(50);
-                  }}
-                >
-                  <option value="">Select class</option>
-                  {classes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.id} — {c.name || "Untitled"}
-                    </option>
-                  ))}
-                </select>
+                <div className="autocomplete">
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Select class (type to filter)"
+                    value={rosterClassQuery}
+                    onChange={(e) => {
+                      setRosterClassQuery(e.target.value);
+                      setRosterClassId("");
+                      setShowRosterClassSuggestions(true);
+                    }}
+                    onFocus={() => setShowRosterClassSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowRosterClassSuggestions(false), 120)}
+                  />
+                  {showRosterClassSuggestions && filteredRosterClasses.length > 0 && (
+                    <div className="autocomplete-menu" role="listbox">
+                      {filteredRosterClasses.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="autocomplete-item"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setRosterClassQuery(formatClassLabel(c));
+                            setRosterClassId(c.id);
+                            setRosterSelected({});
+                            setRosterSearch("");
+                            setRosterLimit(50);
+                            setShowRosterClassSuggestions(false);
+                          }}
+                        >
+                          <span className="autocomplete-primary">{c.id}</span>
+                          <span className="autocomplete-secondary">{c.name || "Untitled"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {!rosterClassId && (
@@ -1331,35 +1886,113 @@ export default function AdminDashboard() {
 
         {activePage === "users" && (
           <>
-        {/* Existing Users */}
-        <div className="section">
-          <h3>Existing Users</h3>
-          <div className="small">You can remove users here. Deleting is permanent.</div>
-          <ul className="card-list">
-            {filteredUsers.map((u) => (
-              <li key={u.uid}>
-                <div>
-                  <div>{u.email}</div>
-                  <div className="meta">{u.role} {u.studentId ? `• ID: ${u.studentId}` : ""}</div>
-                </div>
-                <div>
-                  <button className="btn btn-ghost" onClick={(e) => { const b = e.currentTarget; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 260); openDeleteConfirm(u.uid, u.email); }} disabled={deleting === u.uid}>
-                    <DeleteIcon className="icon" /> {deleting === u.uid ? 'Deleting...' : 'Delete'}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+            {/* Existing Users */}
+            <div className="section">
+              <h3>Existing Users</h3>
+              <div className="small">You can remove users here. Deleting is permanent.</div>
 
-        {/* Pending Invites */}
-        <div className="section">
-          <h3>Pending Invites</h3>
-          <div className="small">Active invites can be copied and shared with students.</div>
-          <ul className="card-list">
-            {filteredInvites.filter((i) => !i.used).map((i) => {
-              const signupUrl = `${window.location.origin}/signup?inviteId=${i.id}`;
-              return (
+              {userSection === "students" && (
+                <ul className="card-list">
+                  {visibleStudents.map((u) => (
+                    <li key={u.uid}>
+                      <div>
+                        <div>{u.email}</div>
+                        <div className="meta">student {u.studentId ? `• ID: ${u.studentId}` : ""}</div>
+                      </div>
+                      <div>
+                        <button className="btn btn-ghost" onClick={(e) => { const b = e.currentTarget; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 260); openDeleteConfirm(u.uid, u.email); }} disabled={deleting === u.uid}>
+                          <DeleteIcon className="icon" /> {deleting === u.uid ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                  {userStudents.length === 0 && (
+                    <li className="small">No students match this filter.</li>
+                  )}
+                </ul>
+                {userStudents.length > visibleStudents.length && (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() =>
+                      setUserLimits((prev) => ({ ...prev, students: prev.students + 50 }))
+                    }
+                  >
+                    Show more ({visibleStudents.length}/{userStudents.length})
+                  </button>
+                )}
+              )}
+
+              {userSection === "teachers" && (
+                <ul className="card-list">
+                  {visibleTeachers.map((u) => (
+                    <li key={u.uid}>
+                      <div>
+                        <div>{u.email}</div>
+                        <div className="meta">teacher</div>
+                      </div>
+                      <div>
+                        <button className="btn btn-ghost" onClick={(e) => { const b = e.currentTarget; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 260); openDeleteConfirm(u.uid, u.email); }} disabled={deleting === u.uid}>
+                          <DeleteIcon className="icon" /> {deleting === u.uid ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                  {userTeachers.length === 0 && (
+                    <li className="small">No teachers match this filter.</li>
+                  )}
+                </ul>
+                {userTeachers.length > visibleTeachers.length && (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() =>
+                      setUserLimits((prev) => ({ ...prev, teachers: prev.teachers + 50 }))
+                    }
+                  >
+                    Show more ({visibleTeachers.length}/{userTeachers.length})
+                  </button>
+                )}
+              )}
+
+              {userSection === "admins" && (
+                <ul className="card-list">
+                  {visibleAdmins.map((u) => (
+                    <li key={u.uid}>
+                      <div>
+                        <div>{u.email}</div>
+                        <div className="meta">admin</div>
+                      </div>
+                      <div>
+                        <button className="btn btn-ghost" onClick={(e) => { const b = e.currentTarget; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 260); openDeleteConfirm(u.uid, u.email); }} disabled={deleting === u.uid}>
+                          <DeleteIcon className="icon" /> {deleting === u.uid ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                  {userAdmins.length === 0 && (
+                    <li className="small">No admins match this filter.</li>
+                  )}
+                </ul>
+                {userAdmins.length > visibleAdmins.length && (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() =>
+                      setUserLimits((prev) => ({ ...prev, admins: prev.admins + 50 }))
+                    }
+                  >
+                    Show more ({visibleAdmins.length}/{userAdmins.length})
+                  </button>
+                )}
+              )}
+            </div>
+
+            {/* Pending Invites */}
+            <div className="section">
+              <h3>Pending Invites</h3>
+              <div className="small">Active invites can be copied and shared with students.</div>
+              <ul className="card-list">
+                {(userSection === "students" ? inviteStudents : userSection === "teachers" ? inviteTeachers : inviteAdmins).map((i) => {
+                  const signupUrl = `${window.location.origin}/signup?inviteId=${i.id}`;
+                  return (
                 <li key={i.id}>
                   <div>
                     <div>{i.email}</div>
