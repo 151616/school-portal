@@ -20,6 +20,7 @@
       }
     },
     "classes": {
+      ".read": "auth != null && auth.token.admin === true",
       "$classId": {
         ".read": "auth != null && (auth.token.admin === true || data.child('teacherUid').val() == auth.uid || data.child('students').child(auth.uid).exists())",
         ".write": "auth != null && auth.token.admin === true"

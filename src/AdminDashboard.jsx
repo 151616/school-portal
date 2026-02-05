@@ -88,6 +88,19 @@ export default function AdminDashboard() {
   const [activePage, setActivePage] = useState("users");
   const [bulkStudentId, setBulkStudentId] = useState("");
   const [bulkSelectedClasses, setBulkSelectedClasses] = useState({});
+  const [multiEnrollMode, setMultiEnrollMode] = useState("class");
+  const [multiEnrollClassId, setMultiEnrollClassId] = useState("");
+  const [multiEnrollTeacherUid, setMultiEnrollTeacherUid] = useState("");
+  const [multiSelectedStudents, setMultiSelectedStudents] = useState({});
+  const [multiStudentSearch, setMultiStudentSearch] = useState("");
+  const [multiTeacherSearch, setMultiTeacherSearch] = useState("");
+  const [multiStudentLimit, setMultiStudentLimit] = useState(50);
+  const [rosterClassId, setRosterClassId] = useState("");
+  const [moveTargets, setMoveTargets] = useState({});
+  const [rosterSearch, setRosterSearch] = useState("");
+  const [rosterLimit, setRosterLimit] = useState(50);
+  const [rosterSelected, setRosterSelected] = useState({});
+  const [rosterBulkTarget, setRosterBulkTarget] = useState("");
 
   // Diagnostics UI state
   const [diagnostics, setDiagnostics] = useState({
@@ -242,6 +255,199 @@ export default function AdminDashboard() {
     matchesQuery(i.studentId) ||
     matchesQuery(i.id)
   );
+
+  const formatTeacherLabel = (u) => {
+    const first = u.firstName || "";
+    const lastInitial = u.lastInitial ? `${u.lastInitial}.` : "";
+    const name = `${first} ${lastInitial}`.trim();
+    return name ? `${name} — ${u.email}` : u.email;
+  };
+
+  const rosterClass = classes.find((c) => c.id === rosterClassId) || null;
+  const rosterStudents = rosterClass && rosterClass.students
+    ? Object.values(rosterClass.students)
+    : [];
+
+  const filteredRoster = rosterStudents
+    .filter((s) => {
+      const q = rosterSearch.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        String(s.email || "").toLowerCase().includes(q) ||
+        String(s.studentId || "").toLowerCase().includes(q) ||
+        String(s.firstName || "").toLowerCase().includes(q) ||
+        String(s.lastInitial || "").toLowerCase().includes(q)
+      );
+    })
+    .slice(0, rosterLimit);
+
+  const totalRosterCount = rosterStudents.filter((s) => {
+    const q = rosterSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      String(s.email || "").toLowerCase().includes(q) ||
+      String(s.studentId || "").toLowerCase().includes(q) ||
+      String(s.firstName || "").toLowerCase().includes(q) ||
+      String(s.lastInitial || "").toLowerCase().includes(q)
+    );
+  }).length;
+
+  const handleRemoveFromClass = async (classId, uid) => {
+    try {
+      await set(ref(db, `classes/${classId}/students/${uid}`), null);
+      addToast("success", "Student removed from class");
+    } catch (err) {
+      console.error("Error removing student:", err);
+      addToast("error", "Error removing student: " + (err.message || err));
+    }
+  };
+
+  const handleMoveStudent = async (fromClassId, uid) => {
+    const targetClassId = moveTargets[uid];
+    if (!targetClassId) {
+      addToast("error", "Select a destination class");
+      return;
+    }
+    if (targetClassId === fromClassId) {
+      addToast("error", "Destination must be different");
+      return;
+    }
+
+    const student = users.find((u) => u.uid === uid);
+    if (!student) {
+      addToast("error", "Student not found");
+      return;
+    }
+
+    try {
+      await set(ref(db, `classes/${targetClassId}/students/${uid}`), {
+        uid,
+        email: student.email || "",
+        firstName: student.firstName || "",
+        lastInitial: student.lastInitial || "",
+        studentId: student.studentId || "",
+      });
+      await set(ref(db, `classes/${fromClassId}/students/${uid}`), null);
+      addToast("success", "Student moved");
+      setMoveTargets((prev) => ({ ...prev, [uid]: "" }));
+    } catch (err) {
+      console.error("Error moving student:", err);
+      addToast("error", "Error moving student: " + (err.message || err));
+    }
+  };
+
+  const handleBulkRemove = async () => {
+    const selectedUids = Object.entries(rosterSelected)
+      .filter(([, selected]) => selected)
+      .map(([uid]) => uid);
+    if (selectedUids.length === 0) {
+      addToast("error", "Select at least one student");
+      return;
+    }
+
+    try {
+      await Promise.all(
+        selectedUids.map((uid) =>
+          set(ref(db, `classes/${rosterClassId}/students/${uid}`), null)
+        )
+      );
+      addToast("success", "Students removed");
+      setRosterSelected({});
+    } catch (err) {
+      console.error("Error bulk removing:", err);
+      addToast("error", "Error bulk removing: " + (err.message || err));
+    }
+  };
+
+  const handleBulkMove = async () => {
+    const selectedUids = Object.entries(rosterSelected)
+      .filter(([, selected]) => selected)
+      .map(([uid]) => uid);
+    if (selectedUids.length === 0) {
+      addToast("error", "Select at least one student");
+      return;
+    }
+    if (!rosterBulkTarget) {
+      addToast("error", "Select a destination class");
+      return;
+    }
+    if (rosterBulkTarget === rosterClassId) {
+      addToast("error", "Destination must be different");
+      return;
+    }
+
+    try {
+      const studentMap = users.reduce((acc, u) => {
+        acc[u.uid] = u;
+        return acc;
+      }, {});
+
+      await Promise.all(
+        selectedUids.map((uid) => {
+          const student = studentMap[uid];
+          if (!student) return null;
+          return set(ref(db, `classes/${rosterBulkTarget}/students/${uid}`), {
+            uid,
+            email: student.email || "",
+            firstName: student.firstName || "",
+            lastInitial: student.lastInitial || "",
+            studentId: student.studentId || "",
+          });
+        }).filter(Boolean)
+      );
+      await Promise.all(
+        selectedUids.map((uid) =>
+          set(ref(db, `classes/${rosterClassId}/students/${uid}`), null)
+        )
+      );
+      addToast("success", "Students moved");
+      setRosterSelected({});
+      setRosterBulkTarget("");
+    } catch (err) {
+      console.error("Error bulk moving:", err);
+      addToast("error", "Error bulk moving: " + (err.message || err));
+    }
+  };
+
+  const filteredStudentsForMulti = users
+    .filter((u) => (u.role || "").toLowerCase() === "student")
+    .filter((u) => {
+      const q = multiStudentSearch.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        String(u.email || "").toLowerCase().includes(q) ||
+        String(u.studentId || "").toLowerCase().includes(q) ||
+        String(u.firstName || "").toLowerCase().includes(q) ||
+        String(u.lastInitial || "").toLowerCase().includes(q)
+      );
+    })
+    .slice(0, multiStudentLimit);
+
+  const totalFilteredStudentCount = users
+    .filter((u) => (u.role || "").toLowerCase() === "student")
+    .filter((u) => {
+      const q = multiStudentSearch.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        String(u.email || "").toLowerCase().includes(q) ||
+        String(u.studentId || "").toLowerCase().includes(q) ||
+        String(u.firstName || "").toLowerCase().includes(q) ||
+        String(u.lastInitial || "").toLowerCase().includes(q)
+      );
+    }).length;
+
+  const filteredTeachersForMulti = users
+    .filter((u) => (u.role || "").toLowerCase() === "teacher")
+    .filter((u) => {
+      const q = multiTeacherSearch.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        String(u.email || "").toLowerCase().includes(q) ||
+        String(u.firstName || "").toLowerCase().includes(q) ||
+        String(u.lastInitial || "").toLowerCase().includes(q)
+      );
+    })
+    .slice(0, 100);
 
   // Load existing users and invites
   useEffect(() => {
@@ -489,6 +695,71 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleMultiEnroll = async () => {
+    const selectedStudentUids = Object.entries(multiSelectedStudents)
+      .filter(([, selected]) => selected)
+      .map(([uid]) => uid);
+
+    if (selectedStudentUids.length === 0) {
+      addToast("error", "Select at least one student");
+      return;
+    }
+
+    let targetClassIds = [];
+    if (multiEnrollMode === "class") {
+      if (!multiEnrollClassId) {
+        addToast("error", "Select a class");
+        return;
+      }
+      targetClassIds = [multiEnrollClassId];
+    } else {
+      if (!multiEnrollTeacherUid) {
+        addToast("error", "Select a teacher");
+        return;
+      }
+      targetClassIds = classes
+        .filter((c) => c.teacherUid === multiEnrollTeacherUid)
+        .map((c) => c.id);
+      if (targetClassIds.length === 0) {
+        addToast("error", "No classes found for that teacher");
+        return;
+      }
+    }
+
+    const studentMap = users
+      .filter((u) => selectedStudentUids.includes(u.uid))
+      .reduce((acc, u) => {
+        acc[u.uid] = u;
+        return acc;
+      }, {});
+
+    try {
+      const writes = [];
+      targetClassIds.forEach((classId) => {
+        selectedStudentUids.forEach((uid) => {
+          const student = studentMap[uid];
+          if (!student) return;
+          writes.push(
+            set(ref(db, `classes/${classId}/students/${uid}`), {
+              uid,
+              email: student.email || "",
+              firstName: student.firstName || "",
+              lastInitial: student.lastInitial || "",
+              studentId: student.studentId || "",
+            })
+          );
+        });
+      });
+
+      await Promise.all(writes);
+      addToast("success", "Students enrolled");
+      setMultiSelectedStudents({});
+    } catch (err) {
+      console.error("Error enrolling students:", err);
+      addToast("error", "Error enrolling students: " + (err.message || err));
+    }
+  };
+
   // Delete flow using modal confirmation
   const [confirm, setConfirm] = useState({ open: false, uid: null, email: "" });
 
@@ -661,7 +932,7 @@ export default function AdminDashboard() {
                     .filter((u) => (u.role || "").toLowerCase() === "teacher")
                     .map((u) => (
                       <option key={u.uid} value={u.uid}>
-                        {u.email}
+                        {formatTeacherLabel(u)}
                       </option>
                     ))}
                 </select>
@@ -736,9 +1007,330 @@ export default function AdminDashboard() {
                 Enroll In Selected Classes
               </button>
             </div>
+
+            {/* Multi-student enroll */}
+            <div className="section">
+              <h3>Multi-Student Enroll</h3>
+              <div className="small">Select a class or teacher, then enroll multiple students at once.</div>
+
+              <div className="form-row" style={{ marginTop: 8 }}>
+                <select
+                  className="select"
+                  value={multiEnrollMode}
+                  onChange={(e) => setMultiEnrollMode(e.target.value)}
+                >
+                  <option value="class">Enroll into one class</option>
+                  <option value="teacher">Enroll into a teacher's classes</option>
+                </select>
+
+                {multiEnrollMode === "class" ? (
+                  <select
+                    className="select"
+                    value={multiEnrollClassId}
+                    onChange={(e) => setMultiEnrollClassId(e.target.value)}
+                  >
+                    <option value="">Select class</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.id} — {c.name || "Untitled"}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <>
+                    <input
+                      className="input"
+                      type="text"
+                      placeholder="Search teacher (name or email)"
+                      value={multiTeacherSearch}
+                      onChange={(e) => setMultiTeacherSearch(e.target.value)}
+                    />
+                    <select
+                      className="select"
+                      value={multiEnrollTeacherUid}
+                      onChange={(e) => setMultiEnrollTeacherUid(e.target.value)}
+                    >
+                      <option value="">Select teacher</option>
+                      {filteredTeachersForMulti.map((u) => (
+                        <option key={u.uid} value={u.uid}>
+                          {formatTeacherLabel(u)}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+              </div>
+
+              <div className="form-row" style={{ marginTop: 8 }}>
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="Search students (email, name, or ID)"
+                  value={multiStudentSearch}
+                  onChange={(e) => {
+                    setMultiStudentSearch(e.target.value);
+                    setMultiStudentLimit(50);
+                  }}
+                />
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    const allSelected = filteredStudentsForMulti.every(
+                      (u) => multiSelectedStudents[u.uid]
+                    );
+                    if (allSelected) {
+                      setMultiSelectedStudents((prev) => {
+                        const next = { ...prev };
+                        filteredStudentsForMulti.forEach((u) => {
+                          delete next[u.uid];
+                        });
+                        return next;
+                      });
+                    } else {
+                      setMultiSelectedStudents((prev) => {
+                        const next = { ...prev };
+                        filteredStudentsForMulti.forEach((u) => {
+                          next[u.uid] = true;
+                        });
+                        return next;
+                      });
+                    }
+                  }}
+                  disabled={filteredStudentsForMulti.length === 0}
+                >
+                  {filteredStudentsForMulti.every((u) => multiSelectedStudents[u.uid])
+                    ? "Clear filtered"
+                    : "Select filtered"}
+                </button>
+              </div>
+
+              <div style={{ marginTop: 8, maxHeight: 260, overflow: "auto" }}>
+                {filteredStudentsForMulti.length === 0 ? (
+                  <div className="small">No students found.</div>
+                ) : (
+                  filteredStudentsForMulti.map((u) => (
+                      <label key={u.uid} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={!!multiSelectedStudents[u.uid]}
+                          onChange={(e) =>
+                            setMultiSelectedStudents((prev) => ({
+                              ...prev,
+                              [u.uid]: e.target.checked,
+                            }))
+                          }
+                        />
+                        <span>
+                          {u.firstName || "Student"} {u.lastInitial ? `${u.lastInitial}.` : ""} — {u.email} {u.studentId ? `• ${u.studentId}` : ""}
+                        </span>
+                      </label>
+                    ))
+                )}
+              </div>
+
+              {totalFilteredStudentCount > filteredStudentsForMulti.length && (
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setMultiStudentLimit((n) => n + 50)}
+                  style={{ marginTop: 6 }}
+                >
+                  Show more ({filteredStudentsForMulti.length}/{totalFilteredStudentCount})
+                </button>
+              )}
+
+              <button className="btn btn-primary" onClick={handleMultiEnroll} style={{ marginTop: 8 }}>
+                Enroll Selected Students
+              </button>
+            </div>
+
+            {/* Roster management */}
+            <div className="section">
+              <h3>Class Roster</h3>
+              <div className="small">View, remove, or move students between classes.</div>
+
+              <div className="form-row" style={{ marginTop: 8 }}>
+                <select
+                  className="select"
+                  value={rosterClassId}
+                  onChange={(e) => {
+                    setRosterClassId(e.target.value);
+                    setRosterSelected({});
+                    setRosterSearch("");
+                    setRosterLimit(50);
+                  }}
+                >
+                  <option value="">Select class</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.id} — {c.name || "Untitled"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {!rosterClassId && (
+                <div className="small" style={{ marginTop: 8 }}>
+                  Pick a class to view its roster.
+                </div>
+              )}
+
+              {rosterClassId && (
+                <div style={{ marginTop: 10 }}>
+                  <div className="form-row" style={{ marginBottom: 8 }}>
+                    <input
+                      className="input"
+                      type="text"
+                      placeholder="Search roster (name, email, or ID)"
+                      value={rosterSearch}
+                      onChange={(e) => {
+                        setRosterSearch(e.target.value);
+                        setRosterLimit(50);
+                      }}
+                    />
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => {
+                        const allSelected = filteredRoster.every(
+                          (s) => rosterSelected[s.uid]
+                        );
+                        if (allSelected) {
+                          setRosterSelected((prev) => {
+                            const next = { ...prev };
+                            filteredRoster.forEach((s) => {
+                              delete next[s.uid];
+                            });
+                            return next;
+                          });
+                        } else {
+                          setRosterSelected((prev) => {
+                            const next = { ...prev };
+                            filteredRoster.forEach((s) => {
+                              next[s.uid] = true;
+                            });
+                            return next;
+                          });
+                        }
+                      }}
+                      disabled={filteredRoster.length === 0}
+                    >
+                      {filteredRoster.every((s) => rosterSelected[s.uid])
+                        ? "Clear filtered"
+                        : "Select filtered"}
+                    </button>
+                  </div>
+
+                  {rosterStudents.length === 0 ? (
+                    <div className="small">No students enrolled in this class.</div>
+                  ) : (
+                    <div className="card-list">
+                      {filteredRoster.map((s) => (
+                        <div
+                          key={s.uid}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "10px 0",
+                            borderBottom: "1px solid #eee",
+                            gap: 12,
+                          }}
+                        >
+                          <div>
+                            <div>
+                              {s.firstName || "Student"} {s.lastInitial ? `${s.lastInitial}.` : ""}
+                            </div>
+                            <div className="meta">
+                              {s.email} {s.studentId ? `• ${s.studentId}` : ""}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input
+                              type="checkbox"
+                              checked={!!rosterSelected[s.uid]}
+                              onChange={(e) =>
+                                setRosterSelected((prev) => ({
+                                  ...prev,
+                                  [s.uid]: e.target.checked,
+                                }))
+                              }
+                            />
+                            <select
+                              className="select"
+                              value={moveTargets[s.uid] || ""}
+                              onChange={(e) =>
+                                setMoveTargets((prev) => ({
+                                  ...prev,
+                                  [s.uid]: e.target.value,
+                                }))
+                              }
+                            >
+                              <option value="">Move to...</option>
+                              {classes
+                                .filter((c) => c.id !== rosterClassId)
+                                .map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.id} — {c.name || "Untitled"}
+                                  </option>
+                                ))}
+                            </select>
+                            <button
+                              className="btn btn-ghost"
+                              onClick={() => handleMoveStudent(rosterClassId, s.uid)}
+                            >
+                              Move
+                            </button>
+                            <button
+                              className="btn btn-ghost"
+                              onClick={() => handleRemoveFromClass(rosterClassId, s.uid)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {totalRosterCount > filteredRoster.length && (
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => setRosterLimit((n) => n + 50)}
+                      style={{ marginTop: 6 }}
+                    >
+                      Show more ({filteredRoster.length}/{totalRosterCount})
+                    </button>
+                  )}
+
+                  <div className="form-row" style={{ marginTop: 10 }}>
+                    <select
+                      className="select"
+                      value={rosterBulkTarget}
+                      onChange={(e) => setRosterBulkTarget(e.target.value)}
+                    >
+                      <option value="">Move selected to...</option>
+                      {classes
+                        .filter((c) => c.id !== rosterClassId)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.id} — {c.name || "Untitled"}
+                          </option>
+                        ))}
+                    </select>
+                    <button className="btn btn-ghost" onClick={handleBulkMove}>
+                      Move Selected
+                    </button>
+                    <button className="btn btn-ghost" onClick={handleBulkRemove}>
+                      Remove Selected
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
 
+        {activePage === "users" && (
+          <>
         {/* Existing Users */}
         <div className="section">
           <h3>Existing Users</h3>
@@ -748,7 +1340,7 @@ export default function AdminDashboard() {
               <li key={u.uid}>
                 <div>
                   <div>{u.email}</div>
-                  <div className="meta">{u.role}</div>
+                  <div className="meta">{u.role} {u.studentId ? `• ID: ${u.studentId}` : ""}</div>
                 </div>
                 <div>
                   <button className="btn btn-ghost" onClick={(e) => { const b = e.currentTarget; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 260); openDeleteConfirm(u.uid, u.email); }} disabled={deleting === u.uid}>
@@ -814,6 +1406,8 @@ export default function AdminDashboard() {
             })}
           </ul>
         </div>
+          </>
+        )}
       </div>
 
       <ConfirmModal 

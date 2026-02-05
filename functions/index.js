@@ -89,6 +89,7 @@ exports.assignRoleFromInvite = functions.https.onCall(
     }
 
     const role = invite.role;
+    const studentId = invite.studentId || "";
     const safeFirstName = typeof firstName === 'string' ? firstName.trim() : '';
     const safeLastInitial = typeof lastInitial === 'string' ? lastInitial.trim().charAt(0).toUpperCase() : '';
 
@@ -103,6 +104,7 @@ exports.assignRoleFromInvite = functions.https.onCall(
       role,
       firstName: safeFirstName,
       lastInitial: safeLastInitial,
+      studentId,
       createdAt: Date.now(),
     });
 

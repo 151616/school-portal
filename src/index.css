@@ -63,7 +63,23 @@ body {
   min-height: 40px;
 }
 .input { flex: 1 1 260px; }
-.select { width: 160px; }
+.select {
+  width: 160px;
+  appearance: none;
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,0.95), rgba(252,249,244,0.95)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b6b6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat, no-repeat;
+  background-position: center, right 12px center;
+  background-size: auto, 14px 14px;
+  padding-right: 34px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+}
+.input:focus, .select:focus {
+  outline: none;
+  border-color: #e2d6c5;
+  box-shadow: 0 0 0 3px rgba(226, 214, 197, 0.35);
+}
 
 .btn { border-radius: 8px; padding: 10px 14px; border: 1px solid transparent; cursor: pointer; font-weight: 700; }
 .btn-primary { background: var(--primary); color: var(--primary-contrast); border-color: rgba(0,0,0,0.08); }
