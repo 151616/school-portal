@@ -1,11 +1,11 @@
 {
   "rules": {
     "Users": {
-      // Admins can list/read all users at /Users; individual users can read their own record via $uid
-      ".read": "auth != null && auth.token.admin === true",
+      // Allow authenticated users to read /Users (messaging + role lookup). Tighten later if needed.
+      ".read": "auth != null",
       ".indexOn": ["email"],
       "$uid": {
-        ".read": "auth != null && (auth.token.admin === true || auth.uid === $uid)",
+        ".read": "auth != null",
         ".write": "auth != null && (auth.token.admin === true || auth.uid === $uid)",
         ".validate": "newData.hasChildren(['email','role']) && newData.child('email').isString() && newData.child('role').isString()"
       }
@@ -38,6 +38,54 @@
       "$inviteId": {
         ".validate": "newData.hasChildren(['email','role','studentId','createdAt','used','createdBy']) && newData.child('email').isString() && newData.child('email').val().matches(/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/) && newData.child('role').isString() && newData.child('studentId').isString() && newData.child('createdBy').isString() && newData.child('used').isBoolean()"
       }
+    },
+    "threads": {
+      "$threadId": {
+        ".read": "auth != null && (data.child('userA').val() == auth.uid || data.child('userB').val() == auth.uid)",
+        ".write": "auth != null && (newData.child('userA').val() == auth.uid || newData.child('userB').val() == auth.uid) && newData.hasChildren(['userA','userB','roleA','roleB','updatedAt']) && newData.child('userA').isString() && newData.child('userB').isString() && newData.child('userA').val() != newData.child('userB').val() && newData.child('roleA').isString() && newData.child('roleB').isString() && newData.child('roleA').val() == root.child('Users').child(newData.child('userA').val()).child('role').val() && newData.child('roleB').val() == root.child('Users').child(newData.child('userB').val()).child('role').val() && ((newData.child('roleA').val() == 'student' && newData.child('roleB').val() == 'teacher') || (newData.child('roleA').val() == 'teacher' && newData.child('roleB').val() == 'student') || (newData.child('roleA').val() == 'teacher' && newData.child('roleB').val() == 'admin') || (newData.child('roleA').val() == 'admin' && newData.child('roleB').val() == 'teacher') || (newData.child('roleA').val() == 'teacher' && newData.child('roleB').val() == 'teacher') || (newData.child('roleA').val() == 'admin' && newData.child('roleB').val() == 'admin'))"
+      }
+    },
+    "messages": {
+      "$threadId": {
+        ".read": "auth != null && (root.child('threads').child($threadId).child('userA').val() == auth.uid || root.child('threads').child($threadId).child('userB').val() == auth.uid)",
+        "$messageId": {
+          ".write": "auth != null && (root.child('threads').child($threadId).child('userA').val() == auth.uid || root.child('threads').child($threadId).child('userB').val() == auth.uid) && newData.hasChildren(['from','text','createdAt']) && newData.child('from').val() == auth.uid && newData.child('text').isString()"
+        }
+      }
+    },
+    "threadIndex": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "teacherTemplates": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "attendance": {
+      "$classId": {
+        ".read": "auth != null && (auth.token.admin === true || root.child('classes').child($classId).child('teacherUid').val() == auth.uid || data.child(auth.uid).exists())",
+        "$date": {
+          ".read": "auth != null && (auth.token.admin === true || root.child('classes').child($classId).child('teacherUid').val() == auth.uid || data.child(auth.uid).exists())",
+          ".write": "auth != null && (auth.token.admin === true || root.child('classes').child($classId).child('teacherUid').val() == auth.uid)"
+        }
+      }
+    },
+    "notifications": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || auth.token.admin === true)",
+        "$notifId": {
+          ".write": "auth != null && (auth.uid == $uid || auth.token.admin === true || root.child('Users').child(auth.uid).child('role').val() == 'teacher')",
+          ".validate": "newData.hasChildren(['title','body','createdAt','read']) && newData.child('title').isString() && newData.child('body').isString() && newData.child('createdAt').isNumber() && newData.child('read').isBoolean()"
+        }
+      }
+    },
+    "auditLogs": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": "auth != null && auth.token.admin === true"
     }
   }
 }

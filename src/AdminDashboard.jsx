@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ref, set, push, onValue, get } from "firebase/database";
+import { ref, set, push, onValue, get, query, orderByChild, limitToLast } from "firebase/database";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, auth } from "./firebase"; // make sure auth is imported
 import Toasts from "./Toasts";
@@ -7,6 +7,7 @@ import { addToast } from "./toastService";
 import ConfirmModal from "./ConfirmModal";
 import { CopyIcon, DeleteIcon, LinkIcon, PlusIcon, AlertIcon } from "./icons";
 import { firebaseConfig } from "./firebase"; // exported for diagnostics
+import MessagingPanel from "./MessagingPanel";
 
 // Diagnostics helper: logs auth, token claims, DB config, and attempts read/write tests
 const runDiagnosticsHelper = async (auth, db, addToast) => {
@@ -71,7 +72,7 @@ const runDiagnosticsHelper = async (auth, db, addToast) => {
   }
 };
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ user }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("student");
   const [users, setUsers] = useState([]);
@@ -121,6 +122,14 @@ export default function AdminDashboard() {
   const [classListLimit, setClassListLimit] = useState(50);
   const [userSort, setUserSort] = useState("email");
   const [classSort, setClassSort] = useState("id");
+  const [classSortDir, setClassSortDir] = useState("asc");
+  const [showUserSuggestions, setShowUserSuggestions] = useState(false);
+  const [userSearchActive, setUserSearchActive] = useState(-1);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [exportClassId, setExportClassId] = useState("");
+  const [attendanceClassId, setAttendanceClassId] = useState("");
+  const [attendanceSummary, setAttendanceSummary] = useState([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
 
   // Diagnostics UI state
   const [diagnostics, setDiagnostics] = useState({
@@ -393,10 +402,20 @@ export default function AdminDashboard() {
     } else {
       sorted.sort((a, b) => String(a.id || "").localeCompare(String(b.id || "")));
     }
+    if (classSortDir === "desc") sorted.reverse();
     return sorted;
   };
 
-  const visibleClasses = sortClasses(classes).slice(0, classListLimit);
+  const filteredClassList = classes.filter((c) => {
+    const q = rosterClassQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      c.id.toLowerCase().includes(q) ||
+      String(c.name || "").toLowerCase().includes(q)
+    );
+  });
+
+  const visibleClasses = sortClasses(filteredClassList).slice(0, classListLimit);
 
   const resolveStudentFromQuery = () => {
     if (enrollStudentSelectedUid) {
@@ -503,6 +522,13 @@ export default function AdminDashboard() {
   const visibleTeachers = userTeachers.slice(0, userLimits.teachers);
   const visibleAdmins = userAdmins.slice(0, userLimits.admins);
 
+  const userSuggestions =
+    userSection === "students"
+      ? userStudents
+      : userSection === "teachers"
+      ? userTeachers
+      : userAdmins;
+
   const inviteStudents = filteredInvites.filter((i) => !i.used && (i.role || "").toLowerCase() === "student");
   const inviteTeachers = filteredInvites.filter((i) => !i.used && (i.role || "").toLowerCase() === "teacher");
   const inviteAdmins = filteredInvites.filter((i) => !i.used && (i.role || "").toLowerCase() === "admin");
@@ -539,6 +565,7 @@ export default function AdminDashboard() {
   const handleRemoveFromClass = async (classId, uid) => {
     try {
       await set(ref(db, `classes/${classId}/students/${uid}`), null);
+      await logAudit("student_removed", { classId, studentUid: uid });
       addToast("success", "Student removed from class");
     } catch (err) {
       console.error("Error removing student:", err);
@@ -572,6 +599,11 @@ export default function AdminDashboard() {
         studentId: student.studentId || "",
       });
       await set(ref(db, `classes/${fromClassId}/students/${uid}`), null);
+      await logAudit("student_moved", {
+        fromClassId,
+        toClassId: targetClassId,
+        studentUid: uid,
+      });
       addToast("success", "Student moved");
       setMoveTargets((prev) => ({ ...prev, [uid]: "" }));
     } catch (err) {
@@ -595,6 +627,10 @@ export default function AdminDashboard() {
           set(ref(db, `classes/${rosterClassId}/students/${uid}`), null)
         )
       );
+      await logAudit("bulk_remove", {
+        classId: rosterClassId,
+        studentUids: selectedUids,
+      });
       addToast("success", "Students removed");
       setRosterSelected({});
     } catch (err) {
@@ -644,6 +680,11 @@ export default function AdminDashboard() {
           set(ref(db, `classes/${rosterClassId}/students/${uid}`), null)
         )
       );
+      await logAudit("bulk_move", {
+        fromClassId: rosterClassId,
+        toClassId: rosterBulkTarget,
+        studentUids: selectedUids,
+      });
       addToast("success", "Students moved");
       setRosterSelected({});
       setRosterBulkTarget("");
@@ -691,6 +732,8 @@ export default function AdminDashboard() {
       if (savedUserSort) setUserSort(savedUserSort);
       const savedClassSort = localStorage.getItem("admin_class_sort");
       if (savedClassSort) setClassSort(savedClassSort);
+      const savedClassSortDir = localStorage.getItem("admin_class_sort_dir");
+      if (savedClassSortDir) setClassSortDir(savedClassSortDir);
     } catch {
       // ignore storage errors
     }
@@ -702,12 +745,348 @@ export default function AdminDashboard() {
       localStorage.setItem("admin_class_limit", String(classListLimit));
       localStorage.setItem("admin_user_sort", userSort);
       localStorage.setItem("admin_class_sort", classSort);
+      localStorage.setItem("admin_class_sort_dir", classSortDir);
     } catch {
       // ignore storage errors
     }
-  }, [userLimits, classListLimit, userSort, classSort]);
+  }, [userLimits, classListLimit, userSort, classSort, classSortDir]);
 
+  useEffect(() => {
+    const logsRef = query(ref(db, "auditLogs"), orderByChild("createdAt"), limitToLast(50));
+    const unsubscribe = onValue(logsRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      const list = Object.entries(data)
+        .map(([id, entry]) => ({ id, ...entry }))
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setAuditLogs(list);
+    });
+    return () => unsubscribe();
+  }, []);
 
+  useEffect(() => {
+    if (!attendanceClassId) {
+      setAttendanceSummary([]);
+      return;
+    }
+    const loadAttendanceSummary = async () => {
+      setAttendanceLoading(true);
+      try {
+        const snap = await get(ref(db, `attendance/${attendanceClassId}`));
+        const data = snap.exists() ? snap.val() : {};
+        const dates = new Set(getRecentDates(7));
+        const summaryMap = {};
+        Object.entries(data).forEach(([date, dayData]) => {
+          if (!dates.has(date)) return;
+          Object.entries(dayData || {}).forEach(([uid, status]) => {
+            if (!summaryMap[uid]) {
+              summaryMap[uid] = { present: 0, tardy: 0, absent: 0, excused: 0 };
+            }
+            if (summaryMap[uid][status] !== undefined) {
+              summaryMap[uid][status] += 1;
+            }
+          });
+        });
+        const classObj = classes.find((c) => c.id === attendanceClassId);
+        const rosterList = classObj?.students ? Object.values(classObj.students) : [];
+        const list = rosterList.map((s) => ({
+          uid: s.uid,
+          name: `${s.firstName || "Student"} ${s.lastInitial ? `${s.lastInitial}.` : ""}`.trim(),
+          email: s.email,
+          studentId: s.studentId,
+          ...summaryMap[s.uid],
+        }));
+        setAttendanceSummary(list);
+      } catch (err) {
+        console.error("Admin attendance summary error:", err);
+        addToast("error", "Unable to load attendance summary");
+      } finally {
+        setAttendanceLoading(false);
+      }
+    };
+    loadAttendanceSummary();
+  }, [attendanceClassId, classes]);
+
+  const logAudit = async (action, details = {}) => {
+    if (!auth.currentUser) return;
+    try {
+      const entry = {
+        action,
+        createdAt: Date.now(),
+        actorUid: auth.currentUser.uid,
+        actorEmail: auth.currentUser.email || "",
+        ...details,
+      };
+      await set(push(ref(db, "auditLogs")), entry);
+    } catch (err) {
+      console.error("Audit log error:", err);
+    }
+  };
+
+  const formatAuditTime = (ts) => {
+    if (!ts) return "Unknown time";
+    try {
+      return new Date(ts).toLocaleString();
+    } catch {
+      return String(ts);
+    }
+  };
+
+  const toISODate = (date) => {
+    const d = new Date(date);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const getRecentDates = (days = 7) => {
+    const list = [];
+    const today = new Date();
+    for (let i = 0; i < days; i += 1) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      list.push(toISODate(d));
+    }
+    return list;
+  };
+
+  const parseCSVLine = (line) => {
+    const result = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === "," && !inQuotes) {
+        result.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    result.push(current);
+    return result;
+  };
+
+  const parseCSV = (text) => {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
+    if (lines.length === 0) return [];
+    const headers = parseCSVLine(lines[0]).map((h) => h.trim());
+    return lines.slice(1).map((line) => {
+      const cols = parseCSVLine(line);
+      const obj = {};
+      headers.forEach((h, idx) => {
+        obj[h] = (cols[idx] || "").trim();
+      });
+      return obj;
+    });
+  };
+
+  const escapeCSV = (value) => {
+    const text = String(value ?? "");
+    if (/[",\n]/.test(text)) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  };
+
+  const downloadCSV = (filename, rows) => {
+    const content = rows.map((row) => row.map(escapeCSV).join(",")).join("\n");
+    const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportInvitesCSV = async (file) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const rows = parseCSV(text);
+      if (rows.length === 0) {
+        addToast("error", "CSV has no rows");
+        return;
+      }
+      const usersSnap = await get(ref(db, "Users"));
+      const usersData = usersSnap.val() || {};
+      const invitesSnap = await get(ref(db, "invites"));
+      const invitesData = invitesSnap.val() || {};
+      let created = 0;
+      let skipped = 0;
+
+      for (const row of rows) {
+        const emailLower = String(row.email || "").toLowerCase();
+        const roleValue = String(row.role || "").toLowerCase() || "student";
+        if (!emailLower) {
+          skipped += 1;
+          continue;
+        }
+        const emailExistsInUsers = Object.values(usersData).some(
+          (u) => (u.email || "").toLowerCase() === emailLower
+        );
+        const emailExistsInInvites = Object.values(invitesData).some(
+          (i) => ((i.email || "").toLowerCase() === emailLower) && !i.used
+        );
+        if (emailExistsInUsers || emailExistsInInvites) {
+          skipped += 1;
+          continue;
+        }
+        const studentId = row.studentId || generateUniqueStudentId(usersData, invitesData);
+        const inviteRef = push(ref(db, "invites"));
+        await set(inviteRef, {
+          email: emailLower,
+          role: roleValue,
+          studentId: String(studentId),
+          createdAt: Date.now(),
+          used: false,
+          createdBy: auth.currentUser?.uid || "",
+          firstName: row.firstName || "",
+          lastInitial: row.lastInitial || "",
+        });
+        created += 1;
+      }
+
+      addToast("success", `Imported invites: ${created}, skipped: ${skipped}`);
+    } catch (err) {
+      console.error("Import invites error:", err);
+      addToast("error", "Failed to import invites");
+    }
+  };
+
+  const handleImportClassesCSV = async (file) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const rows = parseCSV(text);
+      if (rows.length === 0) {
+        addToast("error", "CSV has no rows");
+        return;
+      }
+      const usersByEmail = users.reduce((acc, u) => {
+        acc[String(u.email || "").toLowerCase()] = u;
+        return acc;
+      }, {});
+      let created = 0;
+      let skipped = 0;
+      for (const row of rows) {
+        const id = String(row.classId || row.id || "").trim();
+        const name = String(row.className || row.name || "").trim();
+        const teacherEmail = String(row.teacherEmail || "").toLowerCase();
+        if (!id || !name || !teacherEmail) {
+          skipped += 1;
+          continue;
+        }
+        const teacher = usersByEmail[teacherEmail];
+        if (!teacher || (teacher.role || "").toLowerCase() !== "teacher") {
+          skipped += 1;
+          continue;
+        }
+        const classRef = ref(db, `classes/${id}`);
+        const existing = await get(classRef);
+        if (existing.exists()) {
+          skipped += 1;
+          continue;
+        }
+        await set(classRef, {
+          name,
+          teacherUid: teacher.uid,
+          createdAt: Date.now(),
+        });
+        await set(ref(db, `teachers/${teacher.uid}/classes/${id}`), true);
+        created += 1;
+      }
+      addToast("success", `Imported classes: ${created}, skipped: ${skipped}`);
+    } catch (err) {
+      console.error("Import classes error:", err);
+      addToast("error", "Failed to import classes");
+    }
+  };
+
+  const handleExportGradebook = async () => {
+    if (!exportClassId) {
+      addToast("error", "Select a class to export");
+      return;
+    }
+    const classObj = classes.find((c) => c.id === exportClassId);
+    if (!classObj || !classObj.students) {
+      addToast("error", "Class has no students");
+      return;
+    }
+    try {
+      const rosterList = Object.values(classObj.students);
+      const assignmentMap = {};
+      const gradeData = {};
+
+      await Promise.all(
+        rosterList.map(async (s) => {
+          const snap = await get(ref(db, `grades/${s.uid}/${exportClassId}/assignments`));
+          const assignments = snap.exists() ? snap.val() : {};
+          gradeData[s.uid] = assignments;
+          Object.entries(assignments).forEach(([aid, a]) => {
+            const label = a.name || aid;
+            assignmentMap[aid] = label;
+          });
+        })
+      );
+
+      const assignmentIds = Object.keys(assignmentMap);
+      const header = ["studentId", "email", "firstName", "lastInitial", ...assignmentIds.map((id) => assignmentMap[id])];
+      const rows = [header];
+
+      rosterList.forEach((s) => {
+        const row = [
+          s.studentId || "",
+          s.email || "",
+          s.firstName || "",
+          s.lastInitial || "",
+        ];
+        assignmentIds.forEach((aid) => {
+          const a = gradeData[s.uid]?.[aid];
+          row.push(a ? `${a.score}/${a.maxScore}` : "");
+        });
+        rows.push(row);
+      });
+
+      downloadCSV(`${exportClassId}-gradebook.csv`, rows);
+      addToast("success", "Gradebook exported");
+    } catch (err) {
+      console.error("Export gradebook error:", err);
+      addToast("error", "Failed to export gradebook");
+    }
+  };
+
+  const handleExportUsersCSV = () => {
+    const list =
+      userSection === "students"
+        ? userStudents
+        : userSection === "teachers"
+        ? userTeachers
+        : userAdmins;
+    const rows = [
+      ["uid", "email", "role", "studentId", "firstName", "lastInitial"],
+      ...list.map((u) => [
+        u.uid || "",
+        u.email || "",
+        u.role || "",
+        u.studentId || "",
+        u.firstName || "",
+        u.lastInitial || "",
+      ]),
+    ];
+    downloadCSV(`${userSection}-users.csv`, rows);
+    addToast("success", "User export ready");
+  };
 
   // Add a new invite
   const handleAddUser = async () => {
@@ -783,6 +1162,12 @@ export default function AdminDashboard() {
         used: false,
         createdBy: auth.currentUser.uid,
       });
+      await logAudit("invite_created", {
+        inviteId: inviteRef.key,
+        targetEmail: emailLower,
+        role,
+        studentId,
+      });
 
       //Generate signup link (logged for admin convenience)
       const signupUrl = `${window.location.origin}/signup?inviteId=${inviteRef.key}`;
@@ -833,6 +1218,11 @@ export default function AdminDashboard() {
       });
 
       await set(ref(db, `teachers/${teacherUid}/classes/${id}`), true);
+      await logAudit("class_created", {
+        classId: id,
+        className: className.trim(),
+        teacherUid,
+      });
 
       addToast("success", "Class created");
       setClassId("");
@@ -875,6 +1265,10 @@ export default function AdminDashboard() {
         firstName: student.firstName || "",
         lastInitial: student.lastInitial || "",
         studentId: student.studentId || "",
+      });
+      await logAudit("student_enrolled", {
+        classId: resolvedClassId,
+        studentUid: student.uid,
       });
       addToast("success", "Student enrolled");
       setEnrollStudentQuery("");
@@ -937,6 +1331,11 @@ export default function AdminDashboard() {
       if (writes.length > 0) {
         await Promise.all(writes);
       }
+      await logAudit("student_bulk_enroll", {
+        studentUid: student.uid,
+        classIds,
+        skipped,
+      });
       if (skipped > 0 && writes.length > 0) {
         addToast("info", `Enrolled in ${writes.length} classes, skipped ${skipped} already enrolled`);
       } else if (skipped > 0 && writes.length === 0) {
@@ -1023,6 +1422,11 @@ export default function AdminDashboard() {
       if (writes.length > 0) {
         await Promise.all(writes);
       }
+      await logAudit("multi_enroll", {
+        classIds: targetClassIds,
+        studentUids: selectedStudentUids,
+        skipped,
+      });
       if (skipped > 0 && writes.length > 0) {
         addToast("info", `Enrolled ${writes.length}, skipped ${skipped} already enrolled`);
       } else if (skipped > 0 && writes.length === 0) {
@@ -1034,6 +1438,26 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error("Error enrolling students:", err);
       addToast("error", "Error enrolling students: " + (err.message || err));
+    }
+  };
+
+  const handleDeleteClass = async (classId, teacherUid) => {
+    if (!classId) return;
+    const first = window.confirm(`Delete class ${classId}? This cannot be undone.`);
+    if (!first) return;
+    const second = window.confirm(`Are you absolutely sure you want to delete ${classId}?`);
+    if (!second) return;
+
+    try {
+      await set(ref(db, `classes/${classId}`), null);
+      if (teacherUid) {
+        await set(ref(db, `teachers/${teacherUid}/classes/${classId}`), null);
+      }
+      await logAudit("class_deleted", { classId, teacherUid: teacherUid || "" });
+      addToast("success", "Class deleted");
+    } catch (err) {
+      console.error("Error deleting class:", err);
+      addToast("error", "Error deleting class: " + (err.message || err));
     }
   };
 
@@ -1052,6 +1476,7 @@ export default function AdminDashboard() {
       const functions = getFunctions();
       const deleteUser = httpsCallable(functions, "deleteUserByAdmin");
       await deleteUser({ uid });
+      await logAudit("user_deleted", { targetUid: uid });
       addToast('success', 'User deleted from Auth and DB!');
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -1065,10 +1490,12 @@ export default function AdminDashboard() {
     <div className="app-container">
       <div className="card">
         <div className="card-header">
-          <h2>Admin Dashboard</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div className="muted">Manage users and invitations. Create invites, copy links, and remove users safely.</div>
-            <button className="btn btn-ghost" onClick={(e) => { const b = e.currentTarget; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 260); runDiagnostics(); }} style={{ marginLeft: 10 }}><AlertIcon className="icon"/> Run Diagnostics</button>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div>
+              <h2>Admin Dashboard</h2>
+              <div className="muted">Manage users and invitations. Create invites, copy links, and remove users safely.</div>
+            </div>
+            <MessagingPanel currentUser={user} currentRole="admin" />
           </div>
 
           {diagnostics && diagnostics.note && (
@@ -1132,19 +1559,19 @@ export default function AdminDashboard() {
             <div className="section">
               <div className="form-row">
                 <button
-                  className={`btn ${userSection === "students" ? "btn-primary" : "btn-ghost"}`}
+                  className={`tab-btn ${userSection === "students" ? "active" : ""}`}
                   onClick={() => { setUserSection("students"); setRole("student"); }}
                 >
                   Students
                 </button>
                 <button
-                  className={`btn ${userSection === "teachers" ? "btn-primary" : "btn-ghost"}`}
+                  className={`tab-btn ${userSection === "teachers" ? "active" : ""}`}
                   onClick={() => { setUserSection("teachers"); setRole("teacher"); }}
                 >
                   Teachers
                 </button>
                 <button
-                  className={`btn ${userSection === "admins" ? "btn-primary" : "btn-ghost"}`}
+                  className={`tab-btn ${userSection === "admins" ? "active" : ""}`}
                   onClick={() => { setUserSection("admins"); setRole("admin"); }}
                 >
                   Admins
@@ -1176,17 +1603,85 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            <div className="section">
+              <h3>Bulk Import (Invites)</h3>
+              <div className="small">CSV columns: email, role, studentId (optional), firstName (optional), lastInitial (optional).</div>
+              <div className="form-row" style={{ marginTop: 8 }}>
+                <input
+                  className="input"
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => handleImportInvitesCSV(e.target.files?.[0])}
+                />
+              </div>
+            </div>
+
             {/* Search */}
             <div className="section">
               <div className="instructions">Search users and pending invites by email, role, student ID, or UID.</div>
               <div className="form-row">
-                <input
-                  className="input"
-                  type="text"
-                  placeholder="Search users or invites..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+                <div className="autocomplete">
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Search users or invites..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setShowUserSuggestions(true);
+                      setUserSearchActive(-1);
+                    }}
+                    onFocus={() => setShowUserSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowUserSuggestions(false), 120)}
+                    onKeyDown={(e) => {
+                      if (!showUserSuggestions || userSuggestions.length === 0) return;
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setUserSearchActive((i) =>
+                          i < userSuggestions.length - 1 ? i + 1 : 0
+                        );
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setUserSearchActive((i) =>
+                          i > 0 ? i - 1 : userSuggestions.length - 1
+                        );
+                      } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        const idx = userSearchActive;
+                        const u = idx >= 0 ? userSuggestions[idx] : userSuggestions[0];
+                        if (u) {
+                          setSearchQuery(u.email || "");
+                          setShowUserSuggestions(false);
+                        }
+                      }
+                    }}
+                  />
+                  {showUserSuggestions && userSuggestions.length > 0 && (
+                    <div className="autocomplete-menu" role="listbox">
+                      {userSuggestions.map((u, idx) => (
+                        <button
+                          key={u.uid}
+                          type="button"
+                          className={`autocomplete-item${userSearchActive === idx ? " active" : ""}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setSearchQuery(u.email || "");
+                            setShowUserSuggestions(false);
+                          }}
+                        >
+                          <span className="autocomplete-primary">
+                            {u.firstName || "User"} {u.lastInitial ? `${u.lastInitial}.` : ""}
+                          </span>
+                          <span className="autocomplete-secondary">
+                            {u.email} {u.studentId ? `• ${u.studentId}` : ""}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="form-row" style={{ marginTop: 6 }}>
                 <button
                   className="btn btn-ghost"
                   onClick={() => setSearchQuery("")}
@@ -1267,7 +1762,55 @@ export default function AdminDashboard() {
               </div>
 
               <div className="section">
+                <h3>Bulk Import / Export</h3>
+                <div className="small">Import classes via CSV: classId, className, teacherEmail.</div>
+                <div className="form-row" style={{ marginTop: 8 }}>
+                  <input
+                    className="input"
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => handleImportClassesCSV(e.target.files?.[0])}
+                  />
+                </div>
+                <div className="small" style={{ marginTop: 12 }}>Export gradebook by class.</div>
+                <div className="form-row" style={{ marginTop: 8 }}>
+                  <select
+                    className="select"
+                    value={exportClassId}
+                    onChange={(e) => setExportClassId(e.target.value)}
+                  >
+                    <option value="">Select class</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.id} — {c.name || "Untitled"}
+                      </option>
+                    ))}
+                  </select>
+                  <button className="btn btn-ghost" onClick={handleExportGradebook}>
+                    Export Gradebook
+                  </button>
+                </div>
+              </div>
+
+              <div className="section">
                 <div className="small">Classes List</div>
+                <div className="form-row" style={{ marginTop: 8 }}>
+                  <div className="autocomplete">
+                    <input
+                      className="input"
+                      type="text"
+                      placeholder="Filter classes (ID or name)"
+                      value={rosterClassQuery}
+                      onChange={(e) => setRosterClassQuery(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => setClassSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                  >
+                    Sort {classSortDir === "asc" ? "A→Z" : "Z→A"}
+                  </button>
+                </div>
                 {classes.length === 0 ? (
                   <div className="small" style={{ marginTop: 6 }}>No classes yet.</div>
                 ) : (
@@ -1278,20 +1821,75 @@ export default function AdminDashboard() {
                           <div>{c.id}</div>
                           <div className="meta">{c.name || "Untitled"}</div>
                         </div>
-                        <div className="small">
-                          {c.teacherUid ? `Teacher UID: ${c.teacherUid}` : "No teacher"}
+                        <div className="small" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <span>{c.teacherUid ? `Teacher UID: ${c.teacherUid}` : "No teacher"}</span>
+                          <button
+                            className="btn btn-ghost"
+                            onClick={() => handleDeleteClass(c.id, c.teacherUid)}
+                          >
+                            Delete
+                          </button>
                         </div>
                       </li>
                     ))}
                   </ul>
                 )}
-                {classes.length > visibleClasses.length && (
+                {filteredClassList.length > visibleClasses.length && (
                   <button
                     className="btn btn-ghost"
                     onClick={() => setClassListLimit((n) => n + 50)}
                   >
-                    Show more ({visibleClasses.length}/{classes.length})
+                    Show more ({visibleClasses.length}/{filteredClassList.length})
                   </button>
+                )}
+                {filteredClassList.length > visibleClasses.length && (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => setClassListLimit(filteredClassList.length)}
+                  >
+                    Show all
+                  </button>
+                )}
+              </div>
+
+              <div className="section">
+                <h3>Attendance Summary</h3>
+                <div className="small">Past 7 days per class.</div>
+                <div className="form-row" style={{ marginTop: 8 }}>
+                  <select
+                    className="select"
+                    value={attendanceClassId}
+                    onChange={(e) => setAttendanceClassId(e.target.value)}
+                  >
+                    <option value="">Select class</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.id} — {c.name || "Untitled"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {attendanceLoading && <div className="small" style={{ marginTop: 6 }}>Loading attendance...</div>}
+                {!attendanceLoading && attendanceClassId && (
+                  <>
+                    {attendanceSummary.length === 0 ? (
+                      <div className="small" style={{ marginTop: 6 }}>No attendance data yet.</div>
+                    ) : (
+                      <ul className="card-list" style={{ marginTop: 8 }}>
+                        {attendanceSummary.map((row) => (
+                          <li key={row.uid}>
+                            <div>
+                              <div>{row.name}</div>
+                              <div className="meta">
+                                Present {row.present || 0} · Tardy {row.tardy || 0} · Absent {row.absent || 0}
+                                {row.absent >= 2 ? " · Missed days flag" : ""}
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -1890,8 +2488,23 @@ export default function AdminDashboard() {
             <div className="section">
               <h3>Existing Users</h3>
               <div className="small">You can remove users here. Deleting is permanent.</div>
+              <div className="form-row" style={{ marginTop: 8 }}>
+                <select
+                  className="select"
+                  value={userSort}
+                  onChange={(e) => setUserSort(e.target.value)}
+                >
+                  <option value="email">Sort by Email</option>
+                  <option value="name">Sort by Name</option>
+                  <option value="studentId">Sort by Student ID</option>
+                </select>
+                <button className="btn btn-ghost" onClick={handleExportUsersCSV}>
+                  Export {userSection}
+                </button>
+              </div>
 
               {userSection === "students" && (
+                <>
                 <ul className="card-list">
                   {visibleStudents.map((u) => (
                     <li key={u.uid}>
@@ -1920,9 +2533,21 @@ export default function AdminDashboard() {
                     Show more ({visibleStudents.length}/{userStudents.length})
                   </button>
                 )}
+                {userStudents.length > visibleStudents.length && (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() =>
+                      setUserLimits((prev) => ({ ...prev, students: userStudents.length }))
+                    }
+                  >
+                    Show all
+                  </button>
+                )}
+                </>
               )}
 
               {userSection === "teachers" && (
+                <>
                 <ul className="card-list">
                   {visibleTeachers.map((u) => (
                     <li key={u.uid}>
@@ -1951,9 +2576,21 @@ export default function AdminDashboard() {
                     Show more ({visibleTeachers.length}/{userTeachers.length})
                   </button>
                 )}
+                {userTeachers.length > visibleTeachers.length && (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() =>
+                      setUserLimits((prev) => ({ ...prev, teachers: userTeachers.length }))
+                    }
+                  >
+                    Show all
+                  </button>
+                )}
+                </>
               )}
 
               {userSection === "admins" && (
+                <>
                 <ul className="card-list">
                   {visibleAdmins.map((u) => (
                     <li key={u.uid}>
@@ -1982,6 +2619,17 @@ export default function AdminDashboard() {
                     Show more ({visibleAdmins.length}/{userAdmins.length})
                   </button>
                 )}
+                {userAdmins.length > visibleAdmins.length && (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() =>
+                      setUserLimits((prev) => ({ ...prev, admins: userAdmins.length }))
+                    }
+                  >
+                    Show all
+                  </button>
+                )}
+                </>
               )}
             </div>
 
@@ -2039,8 +2687,52 @@ export default function AdminDashboard() {
             })}
           </ul>
         </div>
+
+        <div className="section">
+          <h3>Audit Log</h3>
+          <div className="small">Recent admin actions and system changes.</div>
+          <ul className="card-list" style={{ marginTop: 8 }}>
+            {auditLogs.length === 0 ? (
+              <li className="small">No audit events yet.</li>
+            ) : (
+              auditLogs.map((log) => {
+                const parts = [];
+                if (log.targetEmail) parts.push(log.targetEmail);
+                if (log.classId) parts.push(`class ${log.classId}`);
+                if (log.studentUid) parts.push(`student ${log.studentUid}`);
+                if (log.targetUid) parts.push(`user ${log.targetUid}`);
+                if (log.inviteId) parts.push(`invite ${log.inviteId}`);
+                const detailText = parts.join(" · ");
+                return (
+                  <li key={log.id}>
+                    <div>
+                      <div>{log.action || "action"}</div>
+                      <div className="meta">
+                        {formatAuditTime(log.createdAt)} · {log.actorEmail || log.actorUid || "system"}
+                        {detailText ? ` · ${detailText}` : ""}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
           </>
         )}
+        <div className="section" style={{ marginTop: 28, display: "flex", justifyContent: "center" }}>
+          <button
+            className="btn btn-ghost"
+            onClick={(e) => {
+              const b = e.currentTarget;
+              b.classList.add("pulse");
+              setTimeout(() => b.classList.remove("pulse"), 260);
+              runDiagnostics();
+            }}
+          >
+            <AlertIcon className="icon" /> Having a problem? Report it!
+          </button>
+        </div>
       </div>
 
       <ConfirmModal 

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "./firebase";
 import Toasts from './Toasts';
 import { addToast } from './toastService';
@@ -8,6 +8,8 @@ import { CheckIcon } from './icons';
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
+  const [showReset, setShowReset] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) return addToast('error', 'Fill both fields!');
@@ -16,6 +18,32 @@ export default function Login() {
     } catch (error) {
      console.error("Full Firebase error:", error);
       addToast('error', 'Login failed: ' + (error.message || error));
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Google login error:", error);
+      addToast('error', 'Google sign-in failed: ' + (error.message || error));
+    }
+  };
+
+  const handleReset = async () => {
+    const target = (resetEmail || email || "").trim();
+    if (!target) return addToast('error', 'Enter your email to reset password.');
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target);
+    if (!isValidEmail) return addToast('error', 'Enter a valid email address.');
+    try {
+      await sendPasswordResetEmail(auth, target);
+      addToast('success', 'Password reset email sent. Check your inbox.');
+      setShowReset(false);
+      setResetEmail("");
+    } catch (error) {
+      console.error("Reset error:", error);
+      addToast('error', 'Reset failed: ' + (error.message || error));
     }
   };
 
@@ -35,6 +63,28 @@ export default function Login() {
           <button className="btn btn-primary" onClick={(e) => { const icon = e.currentTarget.querySelector('.icon'); if (icon) { icon.classList.add('pulse'); setTimeout(() => icon.classList.remove('pulse'), 260); } handleLogin(); }} style={{ marginTop: 12 }}>
             <CheckIcon className="icon" /> Login
           </button>
+          <button className="btn btn-ghost" onClick={handleGoogleLogin} style={{ marginTop: 8 }}>
+            Continue with Google
+          </button>
+
+          <button className="btn btn-ghost" onClick={() => setShowReset((s) => !s)} style={{ marginTop: 8 }}>
+            Forgot password?
+          </button>
+
+          {showReset && (
+            <div style={{ marginTop: 10 }}>
+              <input
+                className="input"
+                type="email"
+                placeholder="Enter your email to reset"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+              />
+              <button className="btn btn-ghost" onClick={handleReset} style={{ marginTop: 8 }}>
+                Send reset email
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

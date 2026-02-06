@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { auth, db } from "./firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import Toasts from "./Toasts";
 import { addToast } from "./toastService";
@@ -80,7 +80,9 @@ export default function Signup() {
       // 3️⃣ Refresh ID token so new claims appear
       await auth.currentUser.getIdToken(true);
 
-      addToast("success", "Signup successful! Role assigned.");
+      await sendEmailVerification(auth.currentUser);
+
+      addToast("success", "Signup successful! Check your email to verify your address.");
       navigate("/"); // redirect to dashboard or login
     } catch (error) {
       console.error("Signup error:", error);
