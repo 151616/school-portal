@@ -1,19 +1,24 @@
-import React, { useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { Routes, Route, Link } from "react-router-dom";
 import { onAuthStateChanged, signOut, sendEmailVerification } from "firebase/auth";
 import { auth } from "./firebase";
 import { ref, onValue } from "firebase/database";
 import { db } from "./firebase";
 
-import Login from "./Login.jsx";
-import Signup from "./Signup.jsx";
-import TeacherDashboard from "./TeacherDashboard.jsx";
-import StudentDashboard from "./StudentDashboard.jsx";
-import AdminDashboard from "./AdminDashboard.jsx"; // optional for admins
-import Settings from "./Settings.jsx";
-import PrivacyPolicy from "./PrivacyPolicy.jsx";
 import { LogoutIcon } from "./icons";
 import { addToast } from "./toastService";
+
+const Login = lazy(() => import("./Login.jsx"));
+const Signup = lazy(() => import("./Signup.jsx"));
+const TeacherDashboard = lazy(() => import("./TeacherDashboard.jsx"));
+const StudentDashboard = lazy(() => import("./StudentDashboard.jsx"));
+const AdminDashboard = lazy(() => import("./AdminDashboard.jsx"));
+const Settings = lazy(() => import("./Settings.jsx"));
+const PrivacyPolicy = lazy(() => import("./PrivacyPolicy.jsx"));
+
+function RouteFallback() {
+  return <div className="app-container">Loading...</div>;
+}
 
 function AppShell() {
   const [user, setUser] = useState(null);
@@ -164,11 +169,13 @@ export default function App() {
   }, []);
 
   return (
-    <Routes>
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/privacy" element={<PrivacyPolicy />} />
-      <Route path="/settings" element={<Settings />} />
-      <Route path="*" element={<AppShell />} />
-    </Routes>
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="*" element={<AppShell />} />
+      </Routes>
+    </Suspense>
   );
 }

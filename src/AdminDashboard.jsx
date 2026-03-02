@@ -9,7 +9,27 @@ import { CopyIcon, DeleteIcon, LinkIcon, PlusIcon, AlertIcon } from "./icons";
 import { firebaseConfig } from "./firebase"; // exported for diagnostics
 import MessagingPanel from "./MessagingPanel";
 
+const toISODate = (date) => {
+  const d = new Date(date);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const getRecentDates = (days = 7) => {
+  const list = [];
+  const today = new Date();
+  for (let i = 0; i < days; i += 1) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    list.push(toISODate(d));
+  }
+  return list;
+};
+
 // Diagnostics helper: logs auth, token claims, DB config, and attempts read/write tests
+// eslint-disable-next-line no-unused-vars
 const runDiagnosticsHelper = async (auth, db, addToast) => {
   console.groupCollapsed('Diagnostics — Admin Dashboard');
   try {
@@ -24,6 +44,7 @@ const runDiagnosticsHelper = async (auth, db, addToast) => {
     }
 
     console.log('Auth currentUser:', { uid: auth.currentUser.uid, email: auth.currentUser.email });
+    const uid = auth.currentUser.uid;
 
     try {
       const idRes = await auth.currentUser.getIdTokenResult(true);
@@ -829,25 +850,6 @@ export default function AdminDashboard({ user }) {
     } catch {
       return String(ts);
     }
-  };
-
-  const toISODate = (date) => {
-    const d = new Date(date);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  const getRecentDates = (days = 7) => {
-    const list = [];
-    const today = new Date();
-    for (let i = 0; i < days; i += 1) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      list.push(toISODate(d));
-    }
-    return list;
   };
 
   const parseCSVLine = (line) => {

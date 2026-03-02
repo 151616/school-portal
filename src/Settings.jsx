@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+const getSavedTheme = () => localStorage.getItem("theme") || "system";
+
 const applyTheme = (theme) => {
   if (theme === "system") {
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -12,13 +14,11 @@ const applyTheme = (theme) => {
 };
 
 export default function Settings() {
-  const [theme, setTheme] = useState("system");
+  const [theme, setTheme] = useState(() => getSavedTheme());
 
   useEffect(() => {
-    const saved = localStorage.getItem("theme") || "system";
-    setTheme(saved);
-    applyTheme(saved);
-  }, []);
+    applyTheme(theme);
+  }, [theme]);
 
   return (
     <div className="app-container">
@@ -39,28 +39,19 @@ export default function Settings() {
           <div className="form-row" style={{ marginTop: 8 }}>
             <button
               className={`btn ${theme === "system" ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => {
-                setTheme("system");
-                applyTheme("system");
-              }}
+              onClick={() => setTheme("system")}
             >
               System
             </button>
             <button
               className={`btn ${theme === "light" ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => {
-                setTheme("light");
-                applyTheme("light");
-              }}
+              onClick={() => setTheme("light")}
             >
               Light
             </button>
             <button
               className={`btn ${theme === "dark" ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => {
-                setTheme("dark");
-                applyTheme("dark");
-              }}
+              onClick={() => setTheme("dark")}
             >
               Dark
             </button>

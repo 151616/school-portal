@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { auth, db } from "./firebase";
-import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  deleteUser,
+  sendEmailVerification,
+  signOut,
+} from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import Toasts from "./Toasts";
 import { addToast } from "./toastService";
@@ -17,13 +22,14 @@ export default function Signup() {
   const [firstName, setFirstName] = useState("");
   const [lastInitial, setLastInitial] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const inviteId = searchParams.get("inviteId");
 
   useEffect(() => {
     if (!inviteId) {
       addToast("error", "No invite ID provided");
-      navigate("/"); // redirect
+      navigate("/");
       return;
     }
 
@@ -41,7 +47,7 @@ export default function Signup() {
         return;
       }
       setInvite(inviteData);
-      setEmail(inviteData.email); // pre-fill email
+      setEmail(inviteData.email);
       setLoading(false);
     };
 
@@ -49,6 +55,7 @@ export default function Signup() {
   }, [inviteId, navigate]);
 
   const handleSignup = async () => {
+    if (submitting) return;
     if (!password) {
       addToast("error", "Enter a password!");
       return;
@@ -61,32 +68,92 @@ export default function Signup() {
       addToast("error", "Enter your last initial!");
       return;
     }
+
     const lastInitialClean = lastInitial.trim().charAt(0).toUpperCase();
+    const functions = getFunctions();
+    const assignRole = httpsCallable(functions, "assignRoleFromInvite");
+    const signupPayload = {
+      inviteId,
+      firstName: firstName.trim(),
+      lastInitial: lastInitialClean,
+    };
+
+    const provisionAccount = async () => {
+      await assignRole(signupPayload);
+      if (!auth.currentUser) {
+        throw new Error("Signup session expired before setup completed.");
+      }
+      await auth.currentUser.getIdToken(true);
+    };
+
+    setSubmitting(true);
 
     try {
-      // 1️⃣ Create Firebase Auth account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
+      let provisioningComplete = false;
 
-      // 2️⃣ Call Cloud Function to assign role + mark invite
-      const functions = getFunctions();
-      const assignRole = httpsCallable(functions, "assignRoleFromInvite");
-      await assignRole({
-        inviteId,
-        firstName: firstName.trim(),
-        lastInitial: lastInitialClean,
-      });
+      try {
+        await provisionAccount();
+        provisioningComplete = true;
+      } catch (provisionError) {
+        console.error("Signup provisioning error:", provisionError);
 
-      // 3️⃣ Refresh ID token so new claims appear
-      await auth.currentUser.getIdToken(true);
+        try {
+          await provisionAccount();
+          provisioningComplete = true;
+        } catch (retryError) {
+          console.error("Signup recovery failed:", retryError);
 
-      await sendEmailVerification(auth.currentUser);
+          if (auth.currentUser && auth.currentUser.uid === userCredential.user.uid) {
+            try {
+              await deleteUser(userCredential.user);
+              addToast(
+                "error",
+                "Signup failed before setup completed. Your new account was removed. Please try again."
+              );
+            } catch (rollbackError) {
+              console.error("Signup rollback failed:", rollbackError);
+              try {
+                await signOut(auth);
+              } catch (signOutError) {
+                console.error("Signup sign-out failed:", signOutError);
+              }
+              addToast(
+                "error",
+                "Signup failed after account creation. We signed you out. Please try again or contact an administrator."
+              );
+            }
+          } else {
+            addToast("error", "Signup failed before setup completed. Please try again.");
+          }
+          return;
+        }
+      }
 
-      addToast("success", "Signup successful! Check your email to verify your address.");
-      navigate("/"); // redirect to dashboard or login
+      if (!provisioningComplete) {
+        addToast("error", "Signup failed before setup completed. Please try again.");
+        return;
+      }
+
+      try {
+        if (auth.currentUser) {
+          await sendEmailVerification(auth.currentUser);
+        }
+        addToast("success", "Signup successful! Check your email to verify your address.");
+      } catch (verificationError) {
+        console.error("Verification email error:", verificationError);
+        addToast(
+          "info",
+          "Signup completed, but we could not send the verification email. Use the resend option after logging in."
+        );
+      }
+
+      navigate("/");
     } catch (error) {
       console.error("Signup error:", error);
       addToast("error", "Signup failed: " + (error.message || error));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -103,6 +170,11 @@ export default function Signup() {
 
         <div className="section">
           <div className="small">Email: <strong>{email}</strong></div>
+          {invite?.role && (
+            <div className="small" style={{ marginTop: 6 }}>
+              Invited role: <strong>{invite.role}</strong>
+            </div>
+          )}
           <div style={{ height: 12 }} />
           <input
             className="input"
@@ -131,6 +203,7 @@ export default function Signup() {
           <div style={{ height: 12 }} />
           <button
             className="btn btn-primary"
+            disabled={submitting}
             onClick={(e) => {
               const icon = e.currentTarget.querySelector(".icon");
               if (icon) {
@@ -140,7 +213,7 @@ export default function Signup() {
               handleSignup();
             }}
           >
-            <CheckIcon className="icon" /> Sign Up
+            <CheckIcon className="icon" /> {submitting ? "Signing Up..." : "Sign Up"}
           </button>
         </div>
       </div>
