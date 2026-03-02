@@ -42,21 +42,24 @@
     "threads": {
       "$threadId": {
         ".read": "auth != null && (data.child('userA').val() == auth.uid || data.child('userB').val() == auth.uid)",
-        ".write": "auth != null && (newData.child('userA').val() == auth.uid || newData.child('userB').val() == auth.uid) && newData.hasChildren(['userA','userB','roleA','roleB','updatedAt']) && newData.child('userA').isString() && newData.child('userB').isString() && newData.child('userA').val() != newData.child('userB').val() && newData.child('roleA').isString() && newData.child('roleB').isString() && newData.child('roleA').val() == root.child('Users').child(newData.child('userA').val()).child('role').val() && newData.child('roleB').val() == root.child('Users').child(newData.child('userB').val()).child('role').val() && ((newData.child('roleA').val() == 'student' && newData.child('roleB').val() == 'teacher') || (newData.child('roleA').val() == 'teacher' && newData.child('roleB').val() == 'student') || (newData.child('roleA').val() == 'teacher' && newData.child('roleB').val() == 'admin') || (newData.child('roleA').val() == 'admin' && newData.child('roleB').val() == 'teacher') || (newData.child('roleA').val() == 'teacher' && newData.child('roleB').val() == 'teacher') || (newData.child('roleA').val() == 'admin' && newData.child('roleB').val() == 'admin'))"
+        ".write": "auth != null && (newData.child('userA').val() == auth.uid || newData.child('userB').val() == auth.uid) && newData.hasChildren(['userA','userB','roleA','roleB','updatedAt']) && newData.child('userA').isString() && newData.child('userB').isString() && newData.child('userA').val() != newData.child('userB').val() && newData.child('roleA').isString() && newData.child('roleB').isString() && newData.child('updatedAt').isNumber() && newData.child('roleA').val() == root.child('Users').child(newData.child('userA').val()).child('role').val() && newData.child('roleB').val() == root.child('Users').child(newData.child('userB').val()).child('role').val() && ((newData.child('roleA').val() == 'student' && newData.child('roleB').val() == 'teacher') || (newData.child('roleA').val() == 'teacher' && newData.child('roleB').val() == 'student') || (newData.child('roleA').val() == 'teacher' && newData.child('roleB').val() == 'admin') || (newData.child('roleA').val() == 'admin' && newData.child('roleB').val() == 'teacher') || (newData.child('roleA').val() == 'student' && newData.child('roleB').val() == 'admin') || (newData.child('roleA').val() == 'admin' && newData.child('roleB').val() == 'student')) && (!newData.child('lastMessage').exists() || newData.child('lastMessage').isString()) && (!newData.child('lastSender').exists() || newData.child('lastSender').isString()) && (!newData.child('readBy').exists() || ((!newData.child('readBy').child(newData.child('userA').val()).exists() || newData.child('readBy').child(newData.child('userA').val()).isNumber()) && (!newData.child('readBy').child(newData.child('userB').val()).exists() || newData.child('readBy').child(newData.child('userB').val()).isNumber())))"
       }
     },
     "messages": {
       "$threadId": {
         ".read": "auth != null && (root.child('threads').child($threadId).child('userA').val() == auth.uid || root.child('threads').child($threadId).child('userB').val() == auth.uid)",
         "$messageId": {
-          ".write": "auth != null && (root.child('threads').child($threadId).child('userA').val() == auth.uid || root.child('threads').child($threadId).child('userB').val() == auth.uid) && newData.hasChildren(['from','text','createdAt']) && newData.child('from').val() == auth.uid && newData.child('text').isString()"
+          ".write": "auth != null && (root.child('threads').child($threadId).child('userA').val() == auth.uid || root.child('threads').child($threadId).child('userB').val() == auth.uid) && ((root.child('threads').child($threadId).child('roleA').val() == 'student' && root.child('threads').child($threadId).child('roleB').val() == 'teacher') || (root.child('threads').child($threadId).child('roleA').val() == 'teacher' && root.child('threads').child($threadId).child('roleB').val() == 'student') || (root.child('threads').child($threadId).child('roleA').val() == 'teacher' && root.child('threads').child($threadId).child('roleB').val() == 'admin') || (root.child('threads').child($threadId).child('roleA').val() == 'admin' && root.child('threads').child($threadId).child('roleB').val() == 'teacher') || (root.child('threads').child($threadId).child('roleA').val() == 'student' && root.child('threads').child($threadId).child('roleB').val() == 'admin') || (root.child('threads').child($threadId).child('roleA').val() == 'admin' && root.child('threads').child($threadId).child('roleB').val() == 'student')) && newData.hasChildren(['from','text','createdAt']) && newData.child('from').val() == auth.uid && newData.child('text').isString() && newData.child('createdAt').isNumber()"
         }
       }
     },
     "threadIndex": {
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid"
+        "$threadId": {
+          ".write": "auth != null && root.child('threads').child($threadId).exists() && (root.child('threads').child($threadId).child('userA').val() == auth.uid || root.child('threads').child($threadId).child('userB').val() == auth.uid) && (root.child('threads').child($threadId).child('userA').val() == $uid || root.child('threads').child($threadId).child('userB').val() == $uid)",
+          ".validate": "newData.val() === true"
+        }
       }
     },
     "teacherTemplates": {
@@ -85,7 +88,8 @@
     },
     "auditLogs": {
       ".read": "auth != null && auth.token.admin === true",
-      ".write": "auth != null && auth.token.admin === true"
+      ".write": "auth != null && auth.token.admin === true",
+      ".indexOn": ["createdAt"]
     }
   }
 }

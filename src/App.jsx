@@ -1,10 +1,11 @@
 import React, { lazy, Suspense, useEffect, useState } from "react";
-import { Routes, Route, Link } from "react-router-dom";
-import { onAuthStateChanged, signOut, sendEmailVerification } from "firebase/auth";
-import { auth } from "./firebase";
-import { ref, onValue } from "firebase/database";
-import { db } from "./firebase";
+import { Outlet, Route, Routes, useOutletContext } from "react-router-dom";
+import { onAuthStateChanged, sendEmailVerification, signOut } from "firebase/auth";
+import { onValue, ref } from "firebase/database";
+import { auth, db } from "./firebase";
 
+import AppHeader from "./AppHeader";
+import Toasts from "./Toasts";
 import { LogoutIcon } from "./icons";
 import { addToast } from "./toastService";
 
@@ -20,19 +21,31 @@ function RouteFallback() {
   return <div className="app-container">Loading...</div>;
 }
 
-function AppShell() {
+function RoleDashboardRoute() {
+  const { user, role } = useOutletContext();
+
+  if (role === "teacher") return <TeacherDashboard user={user} />;
+  if (role === "student") return <StudentDashboard user={user} />;
+  if (role === "admin") return <AdminDashboard user={user} />;
+
+  return null;
+}
+
+function AuthenticatedLayout() {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null); // teacher, student, or admin
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [emailVerified, setEmailVerified] = useState(true);
 
   useEffect(() => {
     let unsubscribeDB = null;
+
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       if (unsubscribeDB) {
         unsubscribeDB();
         unsubscribeDB = null;
       }
+
       if (!currentUser) {
         setUser(null);
         setRole(null);
@@ -41,8 +54,6 @@ function AppShell() {
       }
 
       setUser(currentUser);
-      console.log("AUTH UID:", currentUser.uid);
-      console.log("AUTH EMAIL:", currentUser.email);
       setEmailVerified(!!currentUser.emailVerified);
 
       const userRef = ref(db, `Users/${currentUser.uid}`);
@@ -71,32 +82,40 @@ function AppShell() {
     };
   }, []);
 
-  const handleLogout = () => {
-    signOut(auth).then(() => {
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
       setUser(null);
       setRole(null);
       setLoading(false);
-    });
+    } catch (error) {
+      console.error("Logout error:", error);
+      addToast("error", "Unable to log out right now.");
+    }
   };
 
   const resendVerification = async () => {
     if (!auth.currentUser) return;
     try {
       await sendEmailVerification(auth.currentUser);
+      addToast("info", "Verification email sent.");
     } catch (error) {
       console.error("Verification email error:", error);
+      addToast("error", "Unable to send a verification email.");
     }
   };
 
   const refreshVerification = async () => {
     if (!auth.currentUser) return;
+
     try {
       await auth.currentUser.reload();
       const verified = !!auth.currentUser.emailVerified;
       setEmailVerified(verified);
+
       if (!verified) {
         await sendEmailVerification(auth.currentUser);
-        addToast("info", "Verification not detected yet. Resent the email.");
+        addToast("info", "Verification not detected yet. We resent the email.");
       }
     } catch (error) {
       console.error("Verification refresh error:", error);
@@ -106,42 +125,65 @@ function AppShell() {
 
   if (!user) return <Login />;
 
-  if (loading) return <div>Loading... (user: {user?.email})</div>;
-  if (!role) {
+  if (loading) {
     return (
-      <div style={{ padding: 40 }}>
-        <h2>No role assigned</h2>
-        <p>Contact an administrator.</p>
-        <button className="btn btn-ghost" onClick={(e) => { const b = e.currentTarget; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 260); handleLogout(); }}><LogoutIcon className="icon"/> Logout</button>
+      <div className="app-container">
+        <div className="card" style={{ maxWidth: 640 }}>
+          Loading your workspace...
+        </div>
       </div>
     );
   }
 
-  // Pass `user` as prop to AdminDashboard (and others if needed)
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-        <Link className="btn btn-ghost" to="/settings" style={{ margin: 10 }}>Settings</Link>
-        <button className="btn btn-ghost" onClick={(e) => { const b = e.currentTarget; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 260); handleLogout(); }} style={{ margin: 10 }}><LogoutIcon className="icon"/> Logout</button>
+  if (!role) {
+    return (
+      <div className="app-container">
+        <div className="card" style={{ maxWidth: 640 }}>
+          <h2>No role assigned</h2>
+          <p>Contact an administrator.</p>
+          <button
+            className="btn btn-ghost"
+            onClick={(e) => {
+              const button = e.currentTarget;
+              button.classList.add("pulse");
+              setTimeout(() => button.classList.remove("pulse"), 260);
+              handleLogout();
+            }}
+          >
+            <LogoutIcon className="icon" />
+            Logout
+          </button>
+        </div>
       </div>
+    );
+  }
 
-      {!emailVerified && (
-        <div className="app-container" style={{ marginBottom: 16 }}>
-          <div className="card" style={{ padding: 12 }}>
-            <div className="small">
-              Your email is not verified. Please check your inbox for a verification link.
-            </div>
-            <div className="form-row" style={{ marginTop: 8 }}>
-              <button className="btn btn-ghost" onClick={resendVerification}>Resend Email</button>
-              <button className="btn btn-ghost" onClick={refreshVerification}>I Verified</button>
+  return (
+    <div className="app-shell">
+      <Toasts />
+      <AppHeader currentUser={user} currentRole={role} onLogout={handleLogout} />
+
+      <main className="app-main">
+        {!emailVerified && (
+          <div className="app-container">
+            <div className="card app-banner-card">
+              <div className="small">
+                Your email is not verified. Please check your inbox for a verification link.
+              </div>
+              <div className="form-row" style={{ marginTop: 8 }}>
+                <button className="btn btn-ghost" onClick={resendVerification}>
+                  Resend Email
+                </button>
+                <button className="btn btn-ghost" onClick={refreshVerification}>
+                  I Verified
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {role === "teacher" && <TeacherDashboard user={user} />}
-      {role === "student" && <StudentDashboard user={user} />}
-      {role === "admin" && <AdminDashboard user={user} />}
+        <Outlet context={{ user, role }} />
+      </main>
     </div>
   );
 }
@@ -157,6 +199,7 @@ export default function App() {
         document.documentElement.setAttribute("data-theme", value);
       }
     };
+
     apply(saved);
 
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -164,6 +207,7 @@ export default function App() {
       const current = localStorage.getItem("theme") || "system";
       if (current === "system") apply("system");
     };
+
     mq.addEventListener?.("change", handleChange);
     return () => mq.removeEventListener?.("change", handleChange);
   }, []);
@@ -173,8 +217,10 @@ export default function App() {
       <Routes>
         <Route path="/signup" element={<Signup />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<AppShell />} />
+        <Route element={<AuthenticatedLayout />}>
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<RoleDashboardRoute />} />
+        </Route>
       </Routes>
     </Suspense>
   );

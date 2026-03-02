@@ -1,13 +1,10 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { ref, set, push, onValue, get, query, orderByChild, limitToLast } from "firebase/database";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { db, auth } from "./firebase"; // make sure auth is imported
-import Toasts from "./Toasts";
+import { httpsCallable } from "firebase/functions";
+import { db, auth, functions, firebaseConfig } from "./firebase"; // make sure auth is imported
 import { addToast } from "./toastService";
 import ConfirmModal from "./ConfirmModal";
 import { CopyIcon, DeleteIcon, LinkIcon, PlusIcon, AlertIcon } from "./icons";
-import { firebaseConfig } from "./firebase"; // exported for diagnostics
-import MessagingPanel from "./MessagingPanel";
 
 const toISODate = (date) => {
   const d = new Date(date);
@@ -28,72 +25,8 @@ const getRecentDates = (days = 7) => {
   return list;
 };
 
-// Diagnostics helper: logs auth, token claims, DB config, and attempts read/write tests
-// eslint-disable-next-line no-unused-vars
-const runDiagnosticsHelper = async (auth, db, addToast) => {
-  console.groupCollapsed('Diagnostics — Admin Dashboard');
-  try {
-    console.log('Firebase config:', firebaseConfig);
-    console.log('DB URL:', firebaseConfig.databaseURL);
 
-    if (!auth || !auth.currentUser) {
-      console.warn('Not authenticated: auth.currentUser is null');
-      addToast('error', 'Not authenticated — sign in and retry diagnostics');
-      console.groupEnd();
-      return;
-    }
-
-    console.log('Auth currentUser:', { uid: auth.currentUser.uid, email: auth.currentUser.email });
-    const uid = auth.currentUser.uid;
-
-    try {
-      const idRes = await auth.currentUser.getIdTokenResult(true);
-      console.log('ID token claims:', idRes.claims);
-    } catch (err) {
-      console.error('Failed to getIdTokenResult:', err);
-    }
-
-    // Test read of /Users
-    try {
-      const usersSnap = await get(ref(db, 'Users'));
-      console.log('/Users read: exists=', usersSnap.exists(), 'val=', usersSnap.exists() ? usersSnap.val() : null);
-    } catch (err) {
-      console.error('Error reading /Users:', err);
-    }
-
-    // Test write to a user-scoped diagnostics path (safer — obeys Users write rules)
-    try {
-      const userDiagRef = ref(db, `Users/${uid}/_diagnostics_test`);
-      await set(userDiagRef, { ts: Date.now(), by: uid });
-      console.log(`Write to Users/${uid}/_diagnostics_test succeeded. Cleaning up...`);
-      await set(userDiagRef, null);
-      console.log('User diagnostics write cleanup successful.');
-    } catch (err) {
-      console.error('Write to Users/<uid>/_diagnostics_test failed:', err);
-    }
-
-    // Test write to invites to see if rules block it (cleanup immediately if succeeds)
-    try {
-      const testRef = push(ref(db, 'invites'));
-      const payload = { email: 'diag@local.test', role: 'student', studentId: 'SDEBUG', createdAt: Date.now(), used: false, createdBy: auth.currentUser.uid };
-      await set(testRef, payload);
-      console.log('Write to invites succeeded (unexpected for non-admin). Cleaning up...');
-      await set(testRef, null);
-      console.log('Invite cleanup successful.');
-    } catch (err) {
-      console.error('Write to invites failed (expected if not admin):', err);
-    }
-
-    addToast('info', 'Diagnostics complete — check console logs for details');
-  } catch (err) {
-    console.error('Diagnostics helper error:', err);
-    addToast('error', 'Diagnostics encountered an error — check console.');
-  } finally {
-    console.groupEnd();
-  }
-};
-
-export default function AdminDashboard({ user }) {
+export default function AdminDashboard() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("student");
   const [users, setUsers] = useState([]);
@@ -160,7 +93,7 @@ export default function AdminDashboard({ user }) {
     usersRead: null,
     usersReadError: null,
     diagWriteError: null,
-    inviteWriteError: null,
+    inviteCreateError: null,
     note: ''
   });
 
@@ -170,7 +103,7 @@ export default function AdminDashboard({ user }) {
 
     if (!auth || !auth.currentUser) {
       setDiagnostics({ loading: false, note: 'Not authenticated', authUser: null });
-      addToast('error', 'Not authenticated — sign in and retry diagnostics');
+      addToast('error', 'Not authenticated - sign in and retry diagnostics');
       return;
     }
 
@@ -207,16 +140,23 @@ export default function AdminDashboard({ user }) {
       console.error('Write to diagnostics/testWrite failed:', err);
     }
 
-    // Test write to invites
-    let inviteWriteErr = null;
+    // Test the callable invite path and clean it up immediately
+    let inviteCreateErr = null;
     try {
-      const testRef = push(ref(db, 'invites'));
-      const payload = { email: 'diag@local.test', role: 'student', studentId: 'SDEBUG', createdAt: Date.now(), used: false, createdBy: uid };
-      await set(testRef, payload);
-      await set(testRef, null);
+      const inviteEmail = `diag+${Date.now()}@example.com`;
+      const inviteResult = await callCreateInvite({
+        email: inviteEmail,
+        role: 'student',
+      });
+
+      if (inviteResult?.inviteId) {
+        await set(ref(db, `invites/${inviteResult.inviteId}`), null);
+      } else {
+        throw new Error('createInvite returned no inviteId');
+      }
     } catch (err) {
-      inviteWriteErr = err.message || String(err);
-      console.error('Write to invites failed (expected if not admin):', err);
+      inviteCreateErr = err.message || String(err);
+      console.error('createInvite diagnostics failed:', err);
     }
 
     setDiagnostics({
@@ -226,13 +166,13 @@ export default function AdminDashboard({ user }) {
       usersRead,
       usersReadError,
       diagWriteError: diagWriteErr,
-      inviteWriteError: inviteWriteErr,
+      inviteCreateError: inviteCreateErr,
       deployedRules: null,
       deployedRulesError: null,
       note: 'Diagnostics complete'
     });
 
-    addToast('info', 'Diagnostics complete — see the panel below');
+    addToast('info', 'Diagnostics complete - see the panel below');
   };
 
   // Refresh ID token (force refresh) and re-run diagnostics
@@ -269,24 +209,12 @@ export default function AdminDashboard({ user }) {
     } catch (err) {
       console.error('Error fetching deployed rules:', err);
       setDiagnostics((s) => ({ ...s, deployedRules: null, deployedRulesError: err.message || String(err), note: 'Error fetching deployed rules' }));
-      addToast('error', 'Unable to fetch deployed rules — check Console or deploy rules');
+      addToast('error', 'Unable to fetch deployed rules - check Console or deploy rules');
     }
   };
 
   const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
-  const generateStudentId = () =>
-    Math.floor(100000 + Math.random() * 900000).toString();
-
-  const generateUniqueStudentId = (usersData, invitesData, maxAttempts = 10) => {
-    for (let i = 0; i < maxAttempts; i++) {
-      const id = generateStudentId();
-      const existsInUsers = Object.values(usersData).some((u) => (u.studentId || "") === id);
-      const existsInInvites = Object.values(invitesData).some((inv) => (inv.studentId || "") === id);
-      if (!existsInUsers && !existsInInvites) return id;
-    }
-    throw new Error("Unable to generate unique studentId — try again");
-  }; 
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const matchesQuery = (value) =>
@@ -310,18 +238,18 @@ export default function AdminDashboard({ user }) {
     const first = u.firstName || "";
     const lastInitial = u.lastInitial ? `${u.lastInitial}.` : "";
     const name = `${first} ${lastInitial}`.trim();
-    return name ? `${name} — ${u.email}` : u.email;
+    return name ? `${name} - ${u.email}` : u.email;
   };
 
   const formatStudentLabel = (u) => {
     const first = u.firstName || "";
     const lastInitial = u.lastInitial ? `${u.lastInitial}.` : "";
     const name = `${first} ${lastInitial}`.trim();
-    const id = u.studentId ? `• ${u.studentId}` : "";
-    return name ? `${name} — ${u.email} ${id}`.trim() : `${u.email} ${id}`.trim();
+    const id = u.studentId ? ` - ${u.studentId}` : "";
+    return name ? `${name} - ${u.email}${id}`.trim() : `${u.email}${id}`.trim();
   };
 
-  const formatClassLabel = (c) => `${c.id} — ${c.name || "Untitled"}`;
+  const formatClassLabel = (c) => `${c.id} - ${c.name || "Untitled"}`;
 
   const filteredEnrollClasses = classes.filter((c) => {
     const q = enrollClassQuery.trim().toLowerCase();
@@ -911,6 +839,12 @@ export default function AdminDashboard({ user }) {
     URL.revokeObjectURL(url);
   };
 
+  const callCreateInvite = async (payload) => {
+    const createInvite = httpsCallable(functions, "createInvite");
+    const result = await createInvite(payload);
+    return result.data;
+  };
+
   const handleImportInvitesCSV = async (file) => {
     if (!file) return;
     try {
@@ -920,10 +854,6 @@ export default function AdminDashboard({ user }) {
         addToast("error", "CSV has no rows");
         return;
       }
-      const usersSnap = await get(ref(db, "Users"));
-      const usersData = usersSnap.val() || {};
-      const invitesSnap = await get(ref(db, "invites"));
-      const invitesData = invitesSnap.val() || {};
       let created = 0;
       let skipped = 0;
 
@@ -934,29 +864,27 @@ export default function AdminDashboard({ user }) {
           skipped += 1;
           continue;
         }
-        const emailExistsInUsers = Object.values(usersData).some(
-          (u) => (u.email || "").toLowerCase() === emailLower
-        );
-        const emailExistsInInvites = Object.values(invitesData).some(
-          (i) => ((i.email || "").toLowerCase() === emailLower) && !i.used
-        );
-        if (emailExistsInUsers || emailExistsInInvites) {
-          skipped += 1;
-          continue;
+        try {
+          await callCreateInvite({
+            email: emailLower,
+            role: roleValue,
+            studentId: row.studentId || "",
+            firstName: row.firstName || "",
+            lastInitial: row.lastInitial || "",
+          });
+          created += 1;
+        } catch (err) {
+          const code = String(err?.code || "").replace("functions/", "");
+          if (
+            code === "already-exists" ||
+            code === "invalid-argument" ||
+            code === "failed-precondition"
+          ) {
+            skipped += 1;
+            continue;
+          }
+          throw err;
         }
-        const studentId = row.studentId || generateUniqueStudentId(usersData, invitesData);
-        const inviteRef = push(ref(db, "invites"));
-        await set(inviteRef, {
-          email: emailLower,
-          role: roleValue,
-          studentId: String(studentId),
-          createdAt: Date.now(),
-          used: false,
-          createdBy: auth.currentUser?.uid || "",
-          firstName: row.firstName || "",
-          lastInitial: row.lastInitial || "",
-        });
-        created += 1;
       }
 
       addToast("success", `Imported invites: ${created}, skipped: ${skipped}`);
@@ -1124,58 +1052,25 @@ export default function AdminDashboard({ user }) {
 
     setLoading(true);
     try {
-      //Fetch current Users and invites
-      const usersSnap = await get(ref(db, "Users"));
-      const usersData = usersSnap.val() || {};
-
-      const invitesSnap = await get(ref(db, "invites"));
-      const invitesData = invitesSnap.val() || {};
-
       const emailLower = email.toLowerCase();
-
-      const emailExistsInUsers = Object.values(usersData).some(
-        (u) => (u.email || "").toLowerCase() === emailLower
-      );
-      if (emailExistsInUsers) {
-        addToast('error', 'This email already has an account!');
-        setLoading(false);
-        return;
-      }
-
-      const emailExistsInInvites = Object.values(invitesData).some(
-        (i) => ((i.email || "").toLowerCase() === emailLower) && !i.used
-      );
-      if (emailExistsInInvites) {
-        addToast('error', 'An invite for this email already exists!');
-        setLoading(false);
-        return;
-      }
-
-      //Generate a unique student ID
-      const studentId = generateUniqueStudentId(usersData, invitesData);
-
-      //Push invite to Firebase including createdBy
-      const inviteRef = push(ref(db, "invites"));
-      await set(inviteRef, {
+      const inviteResult = await callCreateInvite({
         email: emailLower,
         role,
-        studentId,
-        createdAt: Date.now(),
-        used: false,
-        createdBy: auth.currentUser.uid,
       });
+
       await logAudit("invite_created", {
-        inviteId: inviteRef.key,
-        targetEmail: emailLower,
-        role,
-        studentId,
+        inviteId: inviteResult.inviteId,
+        targetEmail: inviteResult.email,
+        role: inviteResult.role,
+        studentId: inviteResult.studentId,
       });
 
       //Generate signup link (logged for admin convenience)
-      const signupUrl = `${window.location.origin}/signup?inviteId=${inviteRef.key}`;
+      const signupUrl = `${window.location.origin}/signup?inviteId=${inviteResult.inviteId}`;
       console.log('Signup link:', signupUrl);
 
-      addToast('success', `Invite created for ${emailLower}! Student ID: ${studentId}`);
+      const idSuffix = inviteResult.studentId ? ` Student ID: ${inviteResult.studentId}` : "";
+      addToast('success', `Invite created for ${inviteResult.email}!${idSuffix}`);
 
       setEmail(""); // reset input
 
@@ -1199,7 +1094,7 @@ export default function AdminDashboard({ user }) {
     const { teacherUid, reason } = resolveClassTeacherFromQuery();
     if (!teacherUid) {
       if (reason === "empty") addToast("error", "Select a teacher");
-      else if (reason === "ambiguous") addToast("error", "Multiple teachers match — type more");
+      else if (reason === "ambiguous") addToast("error", "Multiple teachers match - type more");
       else addToast("error", "Teacher not found");
       return;
     }
@@ -1241,14 +1136,14 @@ export default function AdminDashboard({ user }) {
     const { classId: resolvedClassId, reason: classReason } = resolveClassFromQuery();
     if (!resolvedClassId) {
       if (classReason === "empty") addToast("error", "Select a class");
-      else if (classReason === "ambiguous") addToast("error", "Multiple classes match — type more");
+      else if (classReason === "ambiguous") addToast("error", "Multiple classes match - type more");
       else addToast("error", "Class not found");
       return;
     }
     const { student, reason } = resolveStudentFromQuery();
     if (!student) {
       if (reason === "empty") addToast("error", "Type a student name, email, or ID");
-      else if (reason === "ambiguous") addToast("error", "Multiple matches — type more to narrow it down");
+      else if (reason === "ambiguous") addToast("error", "Multiple matches - type more to narrow it down");
       else addToast("error", "Student not found");
       return;
     }
@@ -1368,7 +1263,7 @@ export default function AdminDashboard({ user }) {
       const { classId, reason } = resolveMultiClassFromQuery();
       if (!classId) {
         if (reason === "empty") addToast("error", "Select a class");
-        else if (reason === "ambiguous") addToast("error", "Multiple classes match — type more");
+        else if (reason === "ambiguous") addToast("error", "Multiple classes match - type more");
         else addToast("error", "Class not found");
         return;
       }
@@ -1377,7 +1272,7 @@ export default function AdminDashboard({ user }) {
       const { teacherUid, reason } = resolveMultiTeacherFromQuery();
       if (!teacherUid) {
         if (reason === "empty") addToast("error", "Select a teacher");
-        else if (reason === "ambiguous") addToast("error", "Multiple teachers match — type more");
+        else if (reason === "ambiguous") addToast("error", "Multiple teachers match - type more");
         else addToast("error", "Teacher not found");
         return;
       }
@@ -1475,7 +1370,6 @@ export default function AdminDashboard({ user }) {
     closeConfirm();
     setDeleting(uid);
     try {
-      const functions = getFunctions();
       const deleteUser = httpsCallable(functions, "deleteUserByAdmin");
       await deleteUser({ uid });
       await logAudit("user_deleted", { targetUid: uid });
@@ -1492,12 +1386,9 @@ export default function AdminDashboard({ user }) {
     <div className="app-container">
       <div className="card">
         <div className="card-header">
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-            <div>
-              <h2>Admin Dashboard</h2>
-              <div className="muted">Manage users and invitations. Create invites, copy links, and remove users safely.</div>
-            </div>
-            <MessagingPanel currentUser={user} currentRole="admin" />
+          <div>
+            <h2>Admin Dashboard</h2>
+            <div className="muted">Manage users and invitations. Create invites, copy links, and remove users safely.</div>
           </div>
 
           {diagnostics && diagnostics.note && (
@@ -1516,7 +1407,7 @@ export default function AdminDashboard({ user }) {
                 <div><strong>Admin claim:</strong> {diagnostics.claims && diagnostics.claims.admin ? 'Yes' : 'No'}</div>
                 <div><strong>/Users read:</strong> {diagnostics.usersReadError ? `Error: ${diagnostics.usersReadError}` : (diagnostics.usersRead ? 'OK' : 'Empty')}</div>
                 <div><strong>Diagnostics write:</strong> {diagnostics.diagWriteError ? `Error: ${diagnostics.diagWriteError}` : 'OK'}</div>
-                <div><strong>Invites write:</strong> {diagnostics.inviteWriteError ? `Error: ${diagnostics.inviteWriteError}` : 'OK (admin allowed)'}</div>
+                <div><strong>Invite create:</strong> {diagnostics.inviteCreateError ? `Error: ${diagnostics.inviteCreateError}` : 'OK (callable path)'}</div>
 
                 <div style={{ marginTop: 10 }}>
                   <strong>Deploy helper:</strong>
@@ -1529,16 +1420,13 @@ export default function AdminDashboard({ user }) {
                   {diagnostics.deployedRules && <pre style={{ marginTop: 8, maxHeight: 200, overflow: 'auto', background: '#fff', padding: 8, borderRadius: 6 }}>{JSON.stringify(diagnostics.deployedRules, null, 2)}</pre>}
                 </div>
 
-                {(!diagnostics.claims || !diagnostics.claims.admin) && diagnostics.inviteWriteError && (
-                  <div style={{ marginTop: 8, color: '#7a3' }}><em>Hint: Invite writes are blocked. Set admin claim for this user and deploy rules.</em></div>
+                {(!diagnostics.claims || !diagnostics.claims.admin) && diagnostics.inviteCreateError && (
+                  <div style={{ marginTop: 8, color: '#7a3' }}><em>Hint: Invite creation requires a live admin claim. Sign out and back in if this user was promoted recently.</em></div>
                 )}
               </div>
             </div>
           )}
         </div>
-
-        <Toasts />
-
         <div className="section">
           <div className="form-row">
             <button
@@ -1675,7 +1563,7 @@ export default function AdminDashboard({ user }) {
                             {u.firstName || "User"} {u.lastInitial ? `${u.lastInitial}.` : ""}
                           </span>
                           <span className="autocomplete-secondary">
-                            {u.email} {u.studentId ? `• ${u.studentId}` : ""}
+                            {u.email}{u.studentId ? ` - ${u.studentId}` : ""}
                           </span>
                         </button>
                       ))}
@@ -1784,7 +1672,7 @@ export default function AdminDashboard({ user }) {
                     <option value="">Select class</option>
                     {classes.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.id} — {c.name || "Untitled"}
+                        {c.id} - {c.name || "Untitled"}
                       </option>
                     ))}
                   </select>
@@ -1810,7 +1698,7 @@ export default function AdminDashboard({ user }) {
                     className="btn btn-ghost"
                     onClick={() => setClassSortDir((d) => (d === "asc" ? "desc" : "asc"))}
                   >
-                    Sort {classSortDir === "asc" ? "A→Z" : "Z→A"}
+                    Sort {classSortDir === "asc" ? "A-Z" : "Z-A"}
                   </button>
                 </div>
                 {classes.length === 0 ? (
@@ -1866,7 +1754,7 @@ export default function AdminDashboard({ user }) {
                     <option value="">Select class</option>
                     {classes.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.id} — {c.name || "Untitled"}
+                        {c.id} - {c.name || "Untitled"}
                       </option>
                     ))}
                   </select>
@@ -1883,8 +1771,8 @@ export default function AdminDashboard({ user }) {
                             <div>
                               <div>{row.name}</div>
                               <div className="meta">
-                                Present {row.present || 0} · Tardy {row.tardy || 0} · Absent {row.absent || 0}
-                                {row.absent >= 2 ? " · Missed days flag" : ""}
+                                Present {row.present || 0} | Tardy {row.tardy || 0} | Absent {row.absent || 0}
+                                {row.absent >= 2 ? " | Missed days flag" : ""}
                               </div>
                             </div>
                           </li>
@@ -1989,7 +1877,7 @@ export default function AdminDashboard({ user }) {
                             {u.firstName || "Student"} {u.lastInitial ? `${u.lastInitial}.` : ""}
                           </span>
                           <span className="autocomplete-secondary">
-                            {u.email} {u.studentId ? `• ${u.studentId}` : ""}
+                            {u.email}{u.studentId ? ` - ${u.studentId}` : ""}
                           </span>
                         </button>
                       ))}
@@ -2004,7 +1892,7 @@ export default function AdminDashboard({ user }) {
               </div>
 
               <div style={{ marginTop: 16 }}>
-                <div className="small">Bulk Enroll (one student → many classes)</div>
+                <div className="small">Bulk Enroll (one student to many classes)</div>
                 <div className="small">Pick a student once, then select multiple classes to enroll at once.</div>
               <div className="form-row" style={{ marginTop: 8 }}>
                 <input
@@ -2234,7 +2122,7 @@ export default function AdminDashboard({ user }) {
                             {u.firstName || "Student"} {u.lastInitial ? `${u.lastInitial}.` : ""}
                           </span>
                           <span className="autocomplete-secondary">
-                            {u.email} {u.studentId ? `• ${u.studentId}` : ""}
+                            {u.email}{u.studentId ? ` - ${u.studentId}` : ""}
                           </span>
                         </button>
                       ))}
@@ -2395,7 +2283,7 @@ export default function AdminDashboard({ user }) {
                               {s.firstName || "Student"} {s.lastInitial ? `${s.lastInitial}.` : ""}
                             </div>
                             <div className="meta">
-                              {s.email} {s.studentId ? `• ${s.studentId}` : ""}
+                              {s.email}{s.studentId ? ` - ${s.studentId}` : ""}
                             </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -2424,7 +2312,7 @@ export default function AdminDashboard({ user }) {
                                 .filter((c) => c.id !== rosterClassId)
                                 .map((c) => (
                                   <option key={c.id} value={c.id}>
-                                    {c.id} — {c.name || "Untitled"}
+                                    {c.id} - {c.name || "Untitled"}
                                   </option>
                                 ))}
                             </select>
@@ -2467,7 +2355,7 @@ export default function AdminDashboard({ user }) {
                         .filter((c) => c.id !== rosterClassId)
                         .map((c) => (
                           <option key={c.id} value={c.id}>
-                            {c.id} — {c.name || "Untitled"}
+                            {c.id} - {c.name || "Untitled"}
                           </option>
                         ))}
                     </select>
@@ -2512,7 +2400,7 @@ export default function AdminDashboard({ user }) {
                     <li key={u.uid}>
                       <div>
                         <div>{u.email}</div>
-                        <div className="meta">student {u.studentId ? `• ID: ${u.studentId}` : ""}</div>
+                        <div className="meta">student{u.studentId ? ` - ID: ${u.studentId}` : ""}</div>
                       </div>
                       <div>
                         <button className="btn btn-ghost" onClick={(e) => { const b = e.currentTarget; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 260); openDeleteConfirm(u.uid, u.email); }} disabled={deleting === u.uid}>
@@ -2646,7 +2534,7 @@ export default function AdminDashboard({ user }) {
                 <li key={i.id}>
                   <div>
                     <div>{i.email}</div>
-                    <div className="meta">{i.role} · Student ID: {i.studentId}</div>
+                    <div className="meta">{i.role} | Student ID: {i.studentId}</div>
                   </div>
 
                   <div>
@@ -2704,14 +2592,14 @@ export default function AdminDashboard({ user }) {
                 if (log.studentUid) parts.push(`student ${log.studentUid}`);
                 if (log.targetUid) parts.push(`user ${log.targetUid}`);
                 if (log.inviteId) parts.push(`invite ${log.inviteId}`);
-                const detailText = parts.join(" · ");
+                const detailText = parts.join(" | ");
                 return (
                   <li key={log.id}>
                     <div>
                       <div>{log.action || "action"}</div>
                       <div className="meta">
-                        {formatAuditTime(log.createdAt)} · {log.actorEmail || log.actorUid || "system"}
-                        {detailText ? ` · ${detailText}` : ""}
+                        {formatAuditTime(log.createdAt)} | {log.actorEmail || log.actorUid || "system"}
+                        {detailText ? ` | ${detailText}` : ""}
                       </div>
                     </div>
                   </li>

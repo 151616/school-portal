@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "emulators": "firebase emulators:start --only auth,database,functions",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",

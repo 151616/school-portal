@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ref, get, onValue, set, push } from "firebase/database";
 import { db } from "./firebase";
-import Toasts from "./Toasts";
 import { addToast } from "./toastService";
 import { PlusIcon, CheckIcon } from "./icons";
-import MessagingPanel from "./MessagingPanel";
 
 const slugify = (value) =>
   value
@@ -361,14 +359,10 @@ export default function TeacherDashboard({ user }) {
   return (
     <div className="app-container">
       <div className="card" style={{ maxWidth: 900 }}>
-        <Toasts />
         <div className="card-header">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <div>
-              <h2>Teacher Dashboard</h2>
-              <div className="muted">Select a class and enter grades for an assignment.</div>
-            </div>
-            <MessagingPanel currentUser={user} currentRole="teacher" />
+          <div>
+            <h2>Teacher Dashboard</h2>
+            <div className="muted">Select a class and enter grades for an assignment.</div>
           </div>
         </div>
 
@@ -623,7 +617,7 @@ export default function TeacherDashboard({ user }) {
                       {s.firstName || "Student"} {s.lastInitial ? `${s.lastInitial}.` : ""}
                     </div>
                     <div className="meta">
-                      {s.email} {s.studentId ? `â€¢ ID: ${s.studentId}` : ""}
+                      {s.email}{s.studentId ? ` - ID: ${s.studentId}` : ""}
                     </div>
                   </div>
                   <select

@@ -23,15 +23,11 @@ export default function Settings() {
   return (
     <div className="app-container">
       <div className="card" style={{ maxWidth: 560 }}>
-        <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <div className="card-header">
           <div>
             <h2>Settings</h2>
             <div className="muted">Personalize your experience.</div>
           </div>
-          <Link className="btn btn-ghost" to="/">Back to Dashboard</Link>
-        </div>
-        <div className="small" style={{ marginTop: 6 }}>
-          Home / Settings
         </div>
 
         <div className="section">

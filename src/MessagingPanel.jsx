@@ -1,27 +1,109 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { ref, onValue, get, set, push } from "firebase/database";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { get, onValue, push, ref, set, update } from "firebase/database";
 import { db } from "./firebase";
+import { MessageIcon } from "./icons";
 import { addToast } from "./toastService";
 
 const roleTargets = {
   student: ["teacher"],
-  teacher: ["student", "teacher", "admin"],
-  admin: ["teacher", "admin"],
+  teacher: ["student", "admin"],
+  admin: ["teacher", "student"],
 };
+
+const allowedPairs = new Set([
+  "admin:student",
+  "admin:teacher",
+  "student:teacher",
+]);
 
 const threadIdFor = (a, b) => [a, b].sort().join("_");
 
+const normalizeRole = (role) => String(role || "").trim().toLowerCase();
+
+const isAllowedRolePair = (roleA, roleB) => {
+  const a = normalizeRole(roleA);
+  const b = normalizeRole(roleB);
+  const pair = [a, b].sort().join(":");
+  return allowedPairs.has(pair);
+};
+
+const logMessagingDebug = (label, details) => {
+  console.debug("[MessagingPanel]", label, details);
+};
+
+const sameParticipantPair = (thread, currentUid, otherUid) => {
+  if (!thread) return false;
+
+  const participants = [thread.userA, thread.userB].filter(Boolean).sort();
+  const expected = [currentUid, otherUid].sort();
+  return participants.length === 2 && participants[0] === expected[0] && participants[1] === expected[1];
+};
+
+const buildThreadRecord = ({
+  currentUid,
+  currentRoleValue,
+  otherUid,
+  otherRoleValue,
+  existingThread,
+  now,
+}) => {
+  const preserveExistingOrder = sameParticipantPair(existingThread, currentUid, otherUid);
+  const userA = preserveExistingOrder ? existingThread.userA : currentUid;
+  const userB = preserveExistingOrder ? existingThread.userB : otherUid;
+  const roleA = userA === currentUid ? currentRoleValue : otherRoleValue;
+  const roleB = userB === currentUid ? currentRoleValue : otherRoleValue;
+  const existingReadBy = existingThread?.readBy || {};
+  const existingUpdatedAt = Number(existingThread?.updatedAt || 0);
+
+  return {
+    userA,
+    userB,
+    roleA,
+    roleB,
+    updatedAt: existingUpdatedAt > 0 ? existingUpdatedAt : now,
+    lastMessage: typeof existingThread?.lastMessage === "string" ? existingThread.lastMessage : "",
+    lastSender: typeof existingThread?.lastSender === "string" ? existingThread.lastSender : "",
+    readBy: {
+      [userA]: Number(existingReadBy[userA] ?? (userA === currentUid ? now : 0)) || 0,
+      [userB]: Number(existingReadBy[userB] ?? (userB === currentUid ? now : 0)) || 0,
+    },
+  };
+};
+
+const threadNeedsRepair = (existingThread, nextThread) => {
+  if (!existingThread) return true;
+
+  if (existingThread.userA !== nextThread.userA) return true;
+  if (existingThread.userB !== nextThread.userB) return true;
+  if (existingThread.roleA !== nextThread.roleA) return true;
+  if (existingThread.roleB !== nextThread.roleB) return true;
+  if (typeof existingThread.updatedAt !== "number") return true;
+  if (typeof existingThread.lastMessage !== "string") return true;
+  if (typeof existingThread.lastSender !== "string") return true;
+
+  const existingReadBy = existingThread.readBy || {};
+  if (typeof existingReadBy[nextThread.userA] !== "number") return true;
+  if (typeof existingReadBy[nextThread.userB] !== "number") return true;
+
+  return false;
+};
+
 const formatRelativeTime = (ts) => {
   if (!ts) return "";
+
   const diff = Date.now() - ts;
   const sec = Math.floor(diff / 1000);
   if (sec < 60) return `${sec}s ago`;
+
   const min = Math.floor(sec / 60);
   if (min < 60) return `${min}m ago`;
+
   const hr = Math.floor(min / 60);
   if (hr < 24) return `${hr}h ago`;
+
   const day = Math.floor(hr / 24);
   if (day < 7) return `${day}d ago`;
+
   return new Date(ts).toLocaleDateString();
 };
 
@@ -30,442 +112,526 @@ export default function MessagingPanel({ currentUser, currentRole }) {
   const [threads, setThreads] = useState({});
   const [selectedThreadId, setSelectedThreadId] = useState("");
   const [messages, setMessages] = useState([]);
-  const [threadUnread, setThreadUnread] = useState({});
-  const [threadNames, setThreadNames] = useState({});
   const [messageText, setMessageText] = useState("");
   const [contactSearch, setContactSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
-  const [panelVisible, setPanelVisible] = useState(false);
-  const [panelActive, setPanelActive] = useState(false);
-  const [contactOpen, setContactOpen] = useState(false);
-  const panelRef = React.useRef(null);
-  const panelBoxRef = React.useRef(null);
-  const buttonRef = React.useRef(null);
-  const [caretLeft, setCaretLeft] = useState(40);
+  const menuRef = useRef(null);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setUsers([]);
+      return undefined;
+    }
+
     const usersRef = ref(db, "Users");
     const unsubscribe = onValue(usersRef, (snapshot) => {
       const data = snapshot.val() || {};
-      setUsers(Object.entries(data).map(([uid, u]) => ({ uid, ...u })));
+      const nextUsers = Object.entries(data).map(([uid, user]) => ({ uid, ...user }));
+      setUsers(nextUsers);
     });
+
     return () => unsubscribe();
   }, [currentUser]);
 
   useEffect(() => {
-    if (!currentUser) return;
-    const idxRef = ref(db, `threadIndex/${currentUser.uid}`);
-    const unsubscribe = onValue(idxRef, async (snapshot) => {
-      const ids = snapshot.exists() ? Object.keys(snapshot.val()) : [];
-      const next = {};
-      await Promise.all(
-        ids.map(async (id) => {
-          const snap = await get(ref(db, `threads/${id}`));
-          if (snap.exists()) next[id] = snap.val();
-        })
-      );
-      setThreads(next);
-    });
-    return () => unsubscribe();
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    const seenKey = `thread_seen_${currentUser.uid}`;
-    let seen = {};
-    try {
-      seen = JSON.parse(localStorage.getItem(seenKey) || "{}");
-    } catch {
-      seen = {};
+    if (!currentUser) {
+      setThreads({});
+      return undefined;
     }
 
-    const compute = async () => {
-      const unreadMap = {};
-      const names = {};
-      const ids = Object.keys(threads);
-      await Promise.all(
-        ids.map(async (id) => {
-          const t = threads[id];
-          const otherUid = t.userA === currentUser.uid ? t.userB : t.userA;
-          const other = users.find((u) => u.uid === otherUid);
-          names[id] = other
-            ? `${other.firstName || "User"} ${other.lastInitial ? `${other.lastInitial}.` : ""} - ${other.email}`
-            : otherUid;
+    let active = true;
+    const idxRef = ref(db, `threadIndex/${currentUser.uid}`);
 
-          const msgsSnap = await get(ref(db, `messages/${id}`));
-          const msgs = msgsSnap.exists() ? Object.values(msgsSnap.val()) : [];
-          const lastSeen = seen[id] || 0;
-          const count = msgs.filter(
-            (m) => (m.createdAt || 0) > lastSeen && m.from !== currentUser.uid
-          ).length;
-          unreadMap[id] = count;
-        })
-      );
-      setThreadUnread(unreadMap);
-      setThreadNames(names);
+    const unsubscribe = onValue(
+      idxRef,
+      async (snapshot) => {
+        const ids = snapshot.exists() ? Object.keys(snapshot.val()) : [];
+        const nextThreads = {};
+
+        await Promise.all(
+          ids.map(async (id) => {
+            const snap = await get(ref(db, `threads/${id}`));
+            if (snap.exists()) nextThreads[id] = snap.val();
+          })
+        );
+
+        if (active) setThreads(nextThreads);
+      },
+      (error) => {
+        console.error("Threads index error:", error);
+      }
+    );
+
+    return () => {
+      active = false;
+      unsubscribe();
     };
-
-    compute();
-  }, [threads, users, currentUser]);
+  }, [currentUser]);
 
   useEffect(() => {
     if (!selectedThreadId) {
       setMessages([]);
-      return;
+      return undefined;
     }
+
     const msgRef = ref(db, `messages/${selectedThreadId}`);
-    const unsubscribe = onValue(msgRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      const list = Object.entries(data)
-        .map(([id, m]) => ({ id, ...m }))
-        .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-      setMessages(list);
-    });
+    const unsubscribe = onValue(
+      msgRef,
+      (snapshot) => {
+        const data = snapshot.val() || {};
+        const list = Object.entries(data)
+          .map(([id, message]) => ({ id, ...message }))
+          .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        setMessages(list);
+      },
+      (error) => {
+        console.error("Messages read error:", error);
+      }
+    );
+
     return () => unsubscribe();
   }, [selectedThreadId]);
 
-  const contacts = useMemo(() => {
-    if (!currentUser || !currentRole) return [];
-    const allowed = roleTargets[currentRole] || [];
-    const q = contactSearch.trim().toLowerCase();
-    return users
-      .filter((u) => u.uid !== currentUser.uid)
-      .filter((u) => allowed.includes((u.role || "").toLowerCase()))
-      .filter((u) => {
-        if (!q) return true;
-        return (
-          String(u.email || "").toLowerCase().includes(q) ||
-          String(u.firstName || "").toLowerCase().includes(q) ||
-          String(u.lastInitial || "").toLowerCase().includes(q)
-        );
-      });
-  }, [users, currentUser, currentRole, contactSearch]);
-
-  const hasContactResults = showContacts && (contactOpen || contactSearch.trim()) && contacts.length > 0;
-
-  const openThreadWith = async (other) => {
-    if (!currentUser || !other) return;
-    const id = threadIdFor(currentUser.uid, other.uid);
-    const threadRef = ref(db, `threads/${id}`);
-    const existing = await get(threadRef);
-    if (!existing.exists()) {
-      await set(threadRef, {
-        userA: currentUser.uid,
-        userB: other.uid,
-        roleA: currentRole,
-        roleB: other.role,
-        updatedAt: Date.now(),
-      });
-      await set(ref(db, `threadIndex/${currentUser.uid}/${id}`), true);
-      await set(ref(db, `threadIndex/${other.uid}/${id}`), true);
-    }
-    setSelectedThreadId(id);
-    markThreadRead(id);
-  };
-
-  const sendMessage = async () => {
-    if (!selectedThreadId) return addToast("error", "Select a conversation");
-    if (!messageText.trim()) return;
-    const msgRef = push(ref(db, `messages/${selectedThreadId}`));
-    await set(msgRef, {
-      from: currentUser.uid,
-      text: messageText.trim(),
-      createdAt: Date.now(),
-    });
-    await set(ref(db, `threads/${selectedThreadId}/updatedAt`), Date.now());
-    await set(ref(db, `threads/${selectedThreadId}/lastMessage`), messageText.trim());
-    setMessageText("");
-  };
-
-  const markThreadRead = (id) => {
-    if (!currentUser || !id) return;
-    const seenKey = `thread_seen_${currentUser.uid}`;
-    let seen = {};
-    try {
-      seen = JSON.parse(localStorage.getItem(seenKey) || "{}");
-    } catch {
-      seen = {};
-    }
-    seen[id] = Date.now();
-    localStorage.setItem(seenKey, JSON.stringify(seen));
-    setThreadUnread((prev) => ({ ...prev, [id]: 0 }));
-  };
-
-  const threadList = useMemo(() => {
-    return Object.entries(threads)
-      .map(([id, t]) => ({ id, ...t }))
-      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-  }, [threads]);
-
-  const totalUnread = useMemo(
-    () => Object.values(threadUnread).reduce((sum, n) => sum + (n || 0), 0),
-    [threadUnread]
-  );
-
   useEffect(() => {
-    if (isOpen) {
-      setPanelVisible(true);
-      const t = setTimeout(() => setPanelActive(true), 10);
-      return () => clearTimeout(t);
-    }
-    setPanelActive(false);
-    const t = setTimeout(() => setPanelVisible(false), 180);
-    return () => clearTimeout(t);
-  }, [isOpen]);
+    if (!isOpen) return undefined;
 
-  useEffect(() => {
-    if (!panelVisible) return;
     const handleClick = (event) => {
-      if (!panelRef.current) return;
-      if (panelRef.current.contains(event.target)) return;
+      if (!menuRef.current) return;
+      if (menuRef.current.contains(event.target)) return;
       setIsOpen(false);
       setShowContacts(false);
     };
+
     const handleKey = (event) => {
-      if (event.key !== "Escape") return;
-      setIsOpen(false);
-      setShowContacts(false);
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        setShowContacts(false);
+      }
     };
+
     document.addEventListener("mousedown", handleClick);
     document.addEventListener("keydown", handleKey);
+
     return () => {
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown", handleKey);
     };
-  }, [panelVisible]);
+  }, [isOpen]);
+
+  const usersById = useMemo(() => {
+    const map = {};
+    users.forEach((user) => {
+      map[user.uid] = user;
+    });
+    return map;
+  }, [users]);
+
+  const threadList = useMemo(() => {
+    if (!currentUser) return [];
+
+    return Object.entries(threads)
+      .map(([id, thread]) => {
+        if (!thread || !isAllowedRolePair(thread.roleA, thread.roleB)) return null;
+
+        const otherUid = thread.userA === currentUser.uid ? thread.userB : thread.userA;
+        if (!otherUid) return null;
+
+        const other = usersById[otherUid];
+        const otherLabel = other
+          ? (`${other.firstName || ""} ${other.lastInitial ? `${other.lastInitial}.` : ""}`.trim() || "User")
+          : "User";
+        const displayName = other
+          ? `${otherLabel} - ${other.email}`
+          : otherUid;
+        const readBy = thread.readBy || {};
+        const readAt = Number(readBy[currentUser.uid] || 0);
+        const unread =
+          thread.lastSender &&
+          thread.lastSender !== currentUser.uid &&
+          Number(thread.updatedAt || 0) > readAt;
+
+        return {
+          id,
+          ...thread,
+          displayName,
+          unread,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
+  }, [currentUser, threads, usersById]);
 
   useEffect(() => {
-    if (!panelVisible) return;
-    const updateCaret = () => {
-      if (!panelBoxRef.current || !buttonRef.current) return;
-      const panelRect = panelBoxRef.current.getBoundingClientRect();
-      const buttonRect = buttonRef.current.getBoundingClientRect();
-      const center = buttonRect.left + buttonRect.width / 2;
-      const rawLeft = center - panelRect.left;
-      const clamped = Math.max(18, Math.min(panelRect.width - 18, rawLeft));
-      setCaretLeft(clamped);
-    };
-    updateCaret();
-    window.addEventListener("resize", updateCaret);
-    return () => window.removeEventListener("resize", updateCaret);
-  }, [panelVisible]);
+    if (!selectedThreadId) return;
+
+    const stillVisible = threadList.some((thread) => thread.id === selectedThreadId);
+    if (!stillVisible) {
+      setSelectedThreadId("");
+      setMessages([]);
+    }
+  }, [selectedThreadId, threadList]);
+
+  useEffect(() => {
+    if (!currentUser || !isOpen || !selectedThreadId) return;
+
+    const activeThread = threadList.find((thread) => thread.id === selectedThreadId);
+    if (activeThread && activeThread.unread) {
+      update(ref(db, `threads/${selectedThreadId}`), {
+        [`readBy/${currentUser.uid}`]: Date.now(),
+      }).catch((error) => {
+        console.error("Thread read update error:", error);
+      });
+    }
+  }, [currentUser, isOpen, selectedThreadId, threadList]);
+
+  const contacts = useMemo(() => {
+    if (!currentUser || !currentRole) return [];
+
+    const allowed = roleTargets[normalizeRole(currentRole)] || [];
+    const query = contactSearch.trim().toLowerCase();
+
+    return users
+      .filter((user) => user.uid !== currentUser.uid)
+      .filter((user) => allowed.includes(normalizeRole(user.role)))
+      .filter((user) => {
+        if (!query) return true;
+
+        return (
+          String(user.email || "").toLowerCase().includes(query) ||
+          String(user.firstName || "").toLowerCase().includes(query) ||
+          String(user.lastInitial || "").toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => String(a.email || "").localeCompare(String(b.email || "")));
+  }, [contactSearch, currentRole, currentUser, users]);
+
+  const totalUnread = useMemo(
+    () => threadList.reduce((count, thread) => count + (thread.unread ? 1 : 0), 0),
+    [threadList]
+  );
+
+  const selectedThread = useMemo(
+    () => threadList.find((thread) => thread.id === selectedThreadId) || null,
+    [selectedThreadId, threadList]
+  );
+
+  const markThreadRead = async (threadId) => {
+    if (!currentUser || !threadId) return;
+
+    try {
+      await update(ref(db, `threads/${threadId}`), {
+        [`readBy/${currentUser.uid}`]: Date.now(),
+      });
+    } catch (error) {
+      console.error("Thread read update error:", error);
+    }
+  };
+
+  const openThreadWith = async (other) => {
+    if (!currentUser || !other) return;
+
+    const currentRoleValue = normalizeRole(currentRole);
+    const otherRoleValue = normalizeRole(other.role);
+    if (!isAllowedRolePair(currentRoleValue, otherRoleValue)) {
+      addToast("error", "That conversation is not allowed.");
+      return;
+    }
+
+    const threadId = threadIdFor(currentUser.uid, other.uid);
+    const threadRef = ref(db, `threads/${threadId}`);
+    const now = Date.now();
+
+    try {
+      logMessagingDebug("openThread:start", {
+        threadId,
+        currentUid: currentUser.uid,
+        currentRole: currentRoleValue,
+        otherUid: other.uid,
+        otherRole: otherRoleValue,
+      });
+
+      const existing = await get(threadRef);
+      let threadRecord = buildThreadRecord({
+        currentUid: currentUser.uid,
+        currentRoleValue,
+        otherUid: other.uid,
+        otherRoleValue,
+        existingThread: existing.exists() ? existing.val() : null,
+        now,
+      });
+
+      logMessagingDebug("openThread:existing", {
+        threadId,
+        exists: existing.exists(),
+        existingThread: existing.exists() ? existing.val() : null,
+        nextThread: threadRecord,
+      });
+
+      if (!existing.exists()) {
+        logMessagingDebug("openThread:createThread", {
+          threadId,
+          path: `threads/${threadId}`,
+        });
+        await set(threadRef, threadRecord);
+      } else {
+        const thread = existing.val();
+        if (!sameParticipantPair(thread, currentUser.uid, other.uid)) {
+          logMessagingDebug("openThread:invalidParticipants", {
+            threadId,
+            existingThread: thread,
+          });
+          addToast("error", "This conversation has invalid participants.");
+          return;
+        }
+
+        if (!isAllowedRolePair(threadRecord.roleA, threadRecord.roleB)) {
+          logMessagingDebug("openThread:invalidRolePair", {
+            threadId,
+            roleA: threadRecord.roleA,
+            roleB: threadRecord.roleB,
+          });
+          addToast("error", "This conversation is no longer available.");
+          return;
+        }
+
+        if (threadNeedsRepair(thread, threadRecord)) {
+          logMessagingDebug("openThread:repairThread", {
+            threadId,
+            path: `threads/${threadId}`,
+            existingThread: thread,
+            nextThread: threadRecord,
+          });
+          await update(threadRef, threadRecord);
+        }
+      }
+
+      logMessagingDebug("openThread:writeOwnIndex", {
+        threadId,
+        path: `threadIndex/${currentUser.uid}/${threadId}`,
+      });
+      await set(ref(db, `threadIndex/${currentUser.uid}/${threadId}`), true);
+
+      try {
+        logMessagingDebug("openThread:writePeerIndex", {
+          threadId,
+          path: `threadIndex/${other.uid}/${threadId}`,
+        });
+        await set(ref(db, `threadIndex/${other.uid}/${threadId}`), true);
+      } catch (error) {
+        console.warn("[MessagingPanel] openThread:writePeerIndex:error", {
+          threadId,
+          path: `threadIndex/${other.uid}/${threadId}`,
+          code: error?.code || null,
+          message: error?.message || String(error),
+        });
+      }
+
+      setSelectedThreadId(threadId);
+      setIsOpen(true);
+      setShowContacts(false);
+      setContactSearch("");
+      logMessagingDebug("openThread:markRead", {
+        threadId,
+        path: `threads/${threadId}/readBy/${currentUser.uid}`,
+      });
+      await markThreadRead(threadId);
+      logMessagingDebug("openThread:success", { threadId });
+    } catch (error) {
+      console.error("[MessagingPanel] openThread:error", {
+        threadId,
+        currentUid: currentUser.uid,
+        currentRole: currentRoleValue,
+        otherUid: other.uid,
+        otherRole: otherRoleValue,
+        code: error?.code || null,
+        message: error?.message || String(error),
+      });
+      addToast("error", "Unable to open that conversation right now.");
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!selectedThreadId) {
+      addToast("error", "Select a conversation");
+      return;
+    }
+
+    const text = messageText.trim();
+    if (!text) return;
+
+    const now = Date.now();
+    const msgRef = push(ref(db, `messages/${selectedThreadId}`));
+
+    try {
+      await set(msgRef, {
+        from: currentUser.uid,
+        text,
+        createdAt: now,
+      });
+
+      await update(ref(db, `threads/${selectedThreadId}`), {
+        updatedAt: now,
+        lastMessage: text,
+        lastSender: currentUser.uid,
+        [`readBy/${currentUser.uid}`]: now,
+      });
+
+      setMessageText("");
+    } catch (error) {
+      console.error("Send message error:", error);
+      addToast("error", "Unable to send that message.");
+    }
+  };
+
+  if (!currentUser) return null;
 
   return (
-    <div className="section">
-      <div style={{ position: "relative", display: "inline-block" }} ref={panelRef}>
-        <button
-          className="btn btn-secondary"
-          ref={buttonRef}
-          onClick={() => {
-            setIsOpen((prev) => !prev);
-            if (isOpen) setShowContacts(false);
-          }}
-        >
-          Messages
-          {totalUnread > 0 && (
-            <span
-              style={{
-                marginLeft: 8,
-                minWidth: 16,
-                height: 16,
-                borderRadius: 999,
-                background: "#d14343",
-                color: "#fff",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 10,
-                padding: "0 4px",
-              }}
+    <div className="header-menu" ref={menuRef}>
+      <button
+        className="header-menu-button icon-only"
+        type="button"
+        onClick={() => {
+          setIsOpen((prev) => !prev);
+          if (isOpen) setShowContacts(false);
+        }}
+        aria-label="Messages"
+        title="Messages"
+      >
+        <MessageIcon className="icon" />
+        {totalUnread > 0 && <span className="header-badge">{totalUnread > 9 ? "9+" : totalUnread}</span>}
+      </button>
+
+      {isOpen && (
+        <div className="header-popover messages-popover">
+          <div className="popover-title-row">
+            <h3>Messages</h3>
+            <button
+              className="btn btn-ghost"
+              type="button"
+              onClick={() => setShowContacts((prev) => !prev)}
             >
-              {totalUnread > 9 ? "9+" : totalUnread}
-            </span>
-          )}
-        </button>
+              {showContacts ? "Hide contacts" : "New message"}
+            </button>
+          </div>
 
-        {panelVisible && (
-          <div
-            ref={panelBoxRef}
-            style={{
-              position: "absolute",
-              top: "calc(100% + 10px)",
-              right: 0,
-              width: "min(880px, 92vw)",
-              background: "var(--msg-panel-surface)",
-              color: "var(--text)",
-              border: "1px solid var(--msg-panel-border)",
-              borderRadius: 12,
-              boxShadow: "var(--msg-panel-shadow)",
-              padding: 16,
-              zIndex: 50,
-              opacity: panelActive ? 1 : 0,
-              transform: panelActive ? "translateY(0) scale(1)" : "translateY(-6px) scale(0.98)",
-              transition: "opacity 160ms ease, transform 160ms ease",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                top: -6,
-                left: caretLeft,
-                width: 12,
-                height: 12,
-                background: "var(--msg-panel-caret)",
-                borderLeft: "1px solid var(--msg-panel-border)",
-                borderTop: "1px solid var(--msg-panel-border)",
-                transform: "translateX(-50%) rotate(45deg)",
-              }}
-            />
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-              <h3 style={{ margin: 0 }}>Messages</h3>
-              <button
-                className="btn btn-ghost"
-                onClick={() => setShowContacts((prev) => !prev)}
-              >
-                {showContacts ? "Hide contacts" : "Add new contact"}
-              </button>
-            </div>
-
-            <div className="form-row" style={{ alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
-              <div style={{ flex: "1 1 260px", minWidth: 240 }}>
-                <div className="small" style={{ marginBottom: 6 }}>Conversations</div>
-                <div style={{ marginBottom: 8, maxHeight: 180, overflow: "auto" }}>
-                  {threadList.length === 0 ? (
-                    <div className="small">No conversations yet.</div>
-                  ) : (
-                    threadList.map((t) => (
-                      <button
-                        key={t.id}
-                        className="btn btn-ghost"
-                        style={{ width: "100%", textAlign: "left", marginBottom: 6 }}
-                        onClick={() => {
-                          setSelectedThreadId(t.id);
-                          markThreadRead(t.id);
-                        }}
-                      >
-                        <div>
-                          <strong>{threadNames[t.id] || "Conversation"}</strong>
-                        </div>
-                        <div className="small">
-                          {t.lastMessage ? t.lastMessage.slice(0, 60) : "No messages yet"}
-                        </div>
-                        {threadUnread[t.id] > 0 && (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 6,
-                              fontSize: 12,
-                              color: "#b43333",
-                              marginTop: 4,
-                            }}
-                          >
-                            <span
-                              style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: "50%",
-                                background: "#d14343",
-                                display: "inline-block",
-                              }}
-                            />
-                            {threadUnread[t.id]} unread
-                          </span>
-                        )}
-                      </button>
-                    ))
-                  )}
-                </div>
-
-                {showContacts && (
-                  <>
-                    <div className="autocomplete">
-                      <input
-                        className="input"
-                        type="text"
-                        placeholder="Search contacts..."
-                        value={contactSearch}
-                        onChange={(e) => setContactSearch(e.target.value)}
-                        onFocus={() => setContactOpen(true)}
-                        onBlur={() => setTimeout(() => setContactOpen(false), 120)}
-                      />
-                      {hasContactResults && (
-                        <div className="autocomplete-menu" style={{ marginTop: 6 }}>
-                          {contacts.map((u) => (
-                            <button
-                              key={u.uid}
-                              type="button"
-                              className="autocomplete-item"
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => {
-                                openThreadWith(u);
-                                setContactSearch("");
-                                setContactOpen(false);
-                              }}
-                            >
-                              <span className="autocomplete-primary">
-                                {u.firstName || "User"} {u.lastInitial ? `${u.lastInitial}.` : ""}
-                              </span>
-                              <span className="autocomplete-secondary">{u.email}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {showContacts && contactSearch.trim() && contacts.length === 0 && (
-                        <div className="small" style={{ marginTop: 6 }}>No contacts found.</div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div style={{ flex: "2 1 420px", minWidth: 260 }}>
-                {selectedThreadId ? (
-                  <>
-                    <div
-                      style={{
-                        border: "1px solid rgba(0,0,0,0.08)",
-                        borderRadius: 8,
-                        padding: 10,
-                        maxHeight: 260,
-                        overflow: "auto",
-                        background: "var(--msg-panel-inner)",
+          <div className="messages-layout">
+            <div className="messages-column">
+              <div className="small">Conversations</div>
+              <div className="popover-list">
+                {threadList.length === 0 ? (
+                  <div className="small">No conversations yet.</div>
+                ) : (
+                  threadList.map((thread) => (
+                    <button
+                      key={thread.id}
+                      className={`thread-item${selectedThreadId === thread.id ? " is-active" : ""}`}
+                      type="button"
+                      onClick={async () => {
+                        setSelectedThreadId(thread.id);
+                        await markThreadRead(thread.id);
                       }}
                     >
-                      {messages.length === 0 ? (
-                        <div className="small">No messages yet.</div>
-                      ) : (
-                        messages.map((m) => (
-                          <div key={m.id} className="small" style={{ marginBottom: 6 }}>
-                            <strong>{m.from === currentUser.uid ? "You" : "Them"}:</strong> {m.text}
-                            <span style={{ marginLeft: 8, color: "#777" }}>
-                              {formatRelativeTime(m.createdAt)}
-                            </span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                    <div className="form-row" style={{ marginTop: 8 }}>
-                      <input
-                        className="input"
-                        type="text"
-                        placeholder="Type a message..."
-                        value={messageText}
-                        onChange={(e) => setMessageText(e.target.value)}
-                      />
-                      <button className="btn btn-primary" onClick={sendMessage}>Send</button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="small">Select a contact to start messaging.</div>
+                      <div className="thread-item-top">
+                        <strong>{thread.displayName}</strong>
+                        {thread.unread && <span className="thread-unread-dot" />}
+                      </div>
+                      <div className="small">
+                        {thread.lastMessage ? thread.lastMessage.slice(0, 60) : "No messages yet"}
+                      </div>
+                      <div className="small popover-item-time">
+                        {formatRelativeTime(thread.updatedAt)}
+                      </div>
+                    </button>
+                  ))
                 )}
               </div>
+
+              {showContacts && (
+                <div className="messages-contacts">
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Search contacts..."
+                    value={contactSearch}
+                    onChange={(e) => setContactSearch(e.target.value)}
+                  />
+                  <div className="popover-list">
+                    {contacts.length === 0 ? (
+                      <div className="small">
+                        {contactSearch.trim() ? "No contacts found." : "No contacts available."}
+                      </div>
+                    ) : (
+                      contacts.map((user) => (
+                        <button
+                          key={user.uid}
+                          className="thread-item"
+                          type="button"
+                          onClick={() => openThreadWith(user)}
+                        >
+                          <div className="thread-item-top">
+                            <strong>
+                              {(`${user.firstName || ""} ${user.lastInitial ? `${user.lastInitial}.` : ""}`.trim() || "User")}
+                            </strong>
+                          </div>
+                          <div className="small">{user.email}</div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="messages-column messages-thread-column">
+              {selectedThread ? (
+                <>
+                  <div className="small">{selectedThread.displayName}</div>
+                  <div className="message-stream">
+                    {messages.length === 0 ? (
+                      <div className="small">No messages yet.</div>
+                    ) : (
+                      messages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`message-bubble${
+                            message.from === currentUser.uid ? " is-self" : ""
+                          }`}
+                        >
+                          <div className="message-label">
+                            {message.from === currentUser.uid ? "You" : "Them"}
+                          </div>
+                          <div>{message.text}</div>
+                          <div className="small popover-item-time">
+                            {formatRelativeTime(message.createdAt)}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="form-row" style={{ marginTop: 8 }}>
+                    <input
+                      className="input"
+                      type="text"
+                      placeholder="Type a message..."
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") sendMessage();
+                      }}
+                    />
+                    <button className="btn btn-primary" type="button" onClick={sendMessage}>
+                      Send
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="small">Select a conversation or start a new one.</div>
+              )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

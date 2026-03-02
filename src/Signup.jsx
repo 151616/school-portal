@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { auth, db } from "./firebase";
+import { auth, db, functions } from "./firebase";
 import {
   createUserWithEmailAndPassword,
   deleteUser,
   sendEmailVerification,
   signOut,
 } from "firebase/auth";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { httpsCallable } from "firebase/functions";
 import Toasts from "./Toasts";
 import { addToast } from "./toastService";
 import { CheckIcon } from "./icons";
@@ -70,7 +70,6 @@ export default function Signup() {
     }
 
     const lastInitialClean = lastInitial.trim().charAt(0).toUpperCase();
-    const functions = getFunctions();
     const assignRole = httpsCallable(functions, "assignRoleFromInvite");
     const signupPayload = {
       inviteId,
