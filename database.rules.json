@@ -36,7 +36,7 @@
       ".read": "auth != null",
       ".write": "auth != null && auth.token.admin === true",
       "$inviteId": {
-        ".validate": "newData.hasChildren(['email','role','studentId','createdAt','used','createdBy']) && newData.child('email').isString() && newData.child('email').val().matches(/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/) && newData.child('role').isString() && newData.child('studentId').isString() && newData.child('createdBy').isString() && newData.child('used').isBoolean()"
+        ".validate": "newData.hasChildren(['email','role','studentId','createdAt','used','createdBy']) && newData.child('email').isString() && newData.child('email').val().matches(/^[^ @]+@[^ @]+\\.[^ @]+$/) && newData.child('role').isString() && newData.child('studentId').isString() && newData.child('createdBy').isString() && newData.child('used').isBoolean()"
       }
     },
     "threads": {

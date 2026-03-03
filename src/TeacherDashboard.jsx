@@ -358,7 +358,7 @@ export default function TeacherDashboard({ user }) {
 
   return (
     <div className="app-container">
-      <div className="card" style={{ maxWidth: 900 }}>
+      <div className="card">
         <div className="card-header">
           <div>
             <h2>Teacher Dashboard</h2>

@@ -49,7 +49,7 @@ export default function Login() {
 
   return (
     <div className="app-container">
-      <div className="card" style={{ maxWidth: 420 }}>
+      <div className="card">
         <Toasts />
         <div className="card-header">
           <h2>Login</h2>
@@ -57,30 +57,60 @@ export default function Login() {
         </div>
 
         <div className="section">
-          <input className="input" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="input" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ marginTop: 10 }} />
+          <div className="auth-form-stack">
+            <input
+              className="input auth-field"
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <input
+              className="input auth-field"
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
 
-          <button className="btn btn-primary" onClick={(e) => { const icon = e.currentTarget.querySelector('.icon'); if (icon) { icon.classList.add('pulse'); setTimeout(() => icon.classList.remove('pulse'), 260); } handleLogin(); }} style={{ marginTop: 12 }}>
-            <CheckIcon className="icon" /> Login
-          </button>
-          <button className="btn btn-ghost" onClick={handleGoogleLogin} style={{ marginTop: 8 }}>
-            Continue with Google
-          </button>
+            <button
+              className="btn btn-primary auth-form-submit auth-action"
+              onClick={(e) => {
+                const icon = e.currentTarget.querySelector(".icon");
+                if (icon) {
+                  icon.classList.add("pulse");
+                  setTimeout(() => icon.classList.remove("pulse"), 260);
+                }
+                handleLogin();
+              }}
+            >
+              <CheckIcon className="icon" /> Login
+            </button>
 
-          <button className="btn btn-ghost" onClick={() => setShowReset((s) => !s)} style={{ marginTop: 8 }}>
-            Forgot password?
-          </button>
+            <div className="auth-form-row">
+              <button className="btn btn-ghost auth-form-row-button auth-action" onClick={handleGoogleLogin}>
+                Continue with Google
+              </button>
+
+              <button
+                className="btn btn-ghost auth-form-row-button auth-action"
+                onClick={() => setShowReset((s) => !s)}
+              >
+                Forgot password?
+              </button>
+            </div>
+          </div>
 
           {showReset && (
-            <div style={{ marginTop: 10 }}>
+            <div className="auth-form-stack" style={{ marginTop: 10 }}>
               <input
-                className="input"
+                className="input auth-field"
                 type="email"
                 placeholder="Enter your email to reset"
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
               />
-              <button className="btn btn-ghost" onClick={handleReset} style={{ marginTop: 8 }}>
+              <button className="btn btn-ghost auth-form-submit auth-action" onClick={handleReset}>
                 Send reset email
               </button>
             </div>

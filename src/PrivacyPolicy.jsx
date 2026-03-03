@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 export default function PrivacyPolicy() {
   return (
     <div className="app-container">
-      <div className="card" style={{ maxWidth: 700 }}>
+      <div className="card">
         <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
           <div>
             <h2>Privacy Policy</h2>

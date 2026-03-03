@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import MessagingPanel from "./MessagingPanel";
 import NotificationsMenu from "./NotificationsMenu";
 import { LogoutIcon, SettingsIcon } from "./icons";
@@ -12,6 +12,7 @@ const roleLabels = {
 
 export default function AppHeader({ currentUser, currentRole, onLogout }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const isSettings = location.pathname === "/settings";
 
   return (
@@ -30,14 +31,15 @@ export default function AppHeader({ currentUser, currentRole, onLogout }) {
           </span>
           <NotificationsMenu currentUser={currentUser} />
           <MessagingPanel currentUser={currentUser} currentRole={currentRole} />
-          <Link
+          <button
             className={`header-menu-button icon-only${isSettings ? " is-active" : ""}`}
-            to="/settings"
+            type="button"
+            onClick={() => navigate(isSettings ? "/" : "/settings")}
             aria-label="Settings"
             title="Settings"
           >
             <SettingsIcon className="icon" />
-          </Link>
+          </button>
           <button className="header-menu-button" type="button" onClick={onLogout}>
             <LogoutIcon className="icon" />
             Logout

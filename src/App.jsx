@@ -128,7 +128,7 @@ function AuthenticatedLayout() {
   if (loading) {
     return (
       <div className="app-container">
-        <div className="card" style={{ maxWidth: 640 }}>
+        <div className="card">
           Loading your workspace...
         </div>
       </div>
@@ -138,7 +138,7 @@ function AuthenticatedLayout() {
   if (!role) {
     return (
       <div className="app-container">
-        <div className="card" style={{ maxWidth: 640 }}>
+        <div className="card">
           <h2>No role assigned</h2>
           <p>Contact an administrator.</p>
           <button

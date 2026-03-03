@@ -22,7 +22,7 @@ export default function Settings() {
 
   return (
     <div className="app-container">
-      <div className="card" style={{ maxWidth: 560 }}>
+      <div className="card">
         <div className="card-header">
           <div>
             <h2>Settings</h2>

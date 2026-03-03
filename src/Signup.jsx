@@ -160,7 +160,7 @@ export default function Signup() {
 
   return (
     <div className="app-container">
-      <div className="card" style={{ maxWidth: 420 }}>
+      <div className="card">
         <Toasts />
         <div className="card-header">
           <h2>Signup</h2>
@@ -168,52 +168,50 @@ export default function Signup() {
         </div>
 
         <div className="section">
-          <div className="small">Email: <strong>{email}</strong></div>
-          {invite?.role && (
-            <div className="small" style={{ marginTop: 6 }}>
-              Invited role: <strong>{invite.role}</strong>
-            </div>
-          )}
-          <div style={{ height: 12 }} />
-          <input
-            className="input"
-            type="text"
-            placeholder="First name"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-          />
-          <div style={{ height: 12 }} />
-          <input
-            className="input"
-            type="text"
-            placeholder="Last initial"
-            value={lastInitial}
-            onChange={(e) => setLastInitial(e.target.value)}
-            maxLength={1}
-          />
-          <div style={{ height: 12 }} />
-          <input
-            className="input"
-            type="password"
-            placeholder="Set your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <div style={{ height: 12 }} />
-          <button
-            className="btn btn-primary"
-            disabled={submitting}
-            onClick={(e) => {
-              const icon = e.currentTarget.querySelector(".icon");
-              if (icon) {
-                icon.classList.add("pulse");
-                setTimeout(() => icon.classList.remove("pulse"), 260);
-              }
-              handleSignup();
-            }}
-          >
-            <CheckIcon className="icon" /> {submitting ? "Signing Up..." : "Sign Up"}
-          </button>
+          <div className="auth-form-stack">
+            <div className="small">Email: <strong>{email}</strong></div>
+            {invite?.role && (
+              <div className="small">
+                Invited role: <strong>{invite.role}</strong>
+              </div>
+            )}
+            <input
+              className="input auth-field"
+              type="text"
+              placeholder="First name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
+            <input
+              className="input auth-field"
+              type="text"
+              placeholder="Last initial"
+              value={lastInitial}
+              onChange={(e) => setLastInitial(e.target.value)}
+              maxLength={1}
+            />
+            <input
+              className="input auth-field"
+              type="password"
+              placeholder="Set your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button
+              className="btn btn-primary auth-form-submit auth-action"
+              disabled={submitting}
+              onClick={(e) => {
+                const icon = e.currentTarget.querySelector(".icon");
+                if (icon) {
+                  icon.classList.add("pulse");
+                  setTimeout(() => icon.classList.remove("pulse"), 260);
+                }
+                handleSignup();
+              }}
+            >
+              <CheckIcon className="icon" /> {submitting ? "Signing Up..." : "Sign Up"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

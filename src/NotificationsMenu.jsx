@@ -75,31 +75,24 @@ export default function NotificationsMenu({ currentUser }) {
     [notifications]
   );
 
-  const markAllRead = async () => {
-    if (!currentUser) return;
+  const markNotificationRead = async (notificationId) => {
+    if (!currentUser || !notificationId) return;
 
-    const unread = notifications.filter((item) => !item.read);
-    if (unread.length === 0) return;
-
-    const updates = {};
-    unread.forEach((item) => {
-      updates[`notifications/${currentUser.uid}/${item.id}/read`] = true;
-    });
-
-    await update(ref(db), updates);
-  };
-
-  const toggleMenu = async () => {
-    const next = !isOpen;
-    setIsOpen(next);
-
-    if (!next) return;
+    setNotifications((prev) =>
+      prev.map((item) => (item.id === notificationId ? { ...item, read: true } : item))
+    );
 
     try {
-      await markAllRead();
+      await update(ref(db, `notifications/${currentUser.uid}/${notificationId}`), {
+        read: true,
+      });
     } catch (error) {
-      console.error("Notifications update error:", error);
+      console.error("Notification read update error:", error);
     }
+  };
+
+  const toggleMenu = () => {
+    setIsOpen((prev) => !prev);
   };
 
   if (!currentUser) return null;
@@ -114,7 +107,11 @@ export default function NotificationsMenu({ currentUser }) {
         title="Notifications"
       >
         <BellIcon className="icon" />
-        {unreadCount > 0 && <span className="header-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>}
+        {unreadCount > 0 && (
+          <span className="header-badge" aria-hidden="true">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
       </button>
 
       {isOpen && (
@@ -129,11 +126,22 @@ export default function NotificationsMenu({ currentUser }) {
           ) : (
             <div className="popover-list">
               {notifications.map((item) => (
-                <div key={item.id} className="popover-list-item">
+                <button
+                  key={item.id}
+                  className={`popover-list-item popover-list-item-button${
+                    item.read ? "" : " is-unread"
+                  }`}
+                  type="button"
+                  onClick={() => {
+                    if (!item.read) {
+                      markNotificationRead(item.id);
+                    }
+                  }}
+                >
                   <div className="popover-item-title">{item.title}</div>
                   <div className="small">{item.body}</div>
                   <div className="small popover-item-time">{formatRelativeTime(item.createdAt)}</div>
-                </div>
+                </button>
               ))}
             </div>
           )}

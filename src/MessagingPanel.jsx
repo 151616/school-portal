@@ -319,6 +319,22 @@ export default function MessagingPanel({ currentUser, currentRole }) {
   const markThreadRead = async (threadId) => {
     if (!currentUser || !threadId) return;
 
+    setThreads((prev) => {
+      const thread = prev[threadId];
+      if (!thread) return prev;
+
+      return {
+        ...prev,
+        [threadId]: {
+          ...thread,
+          readBy: {
+            ...(thread.readBy || {}),
+            [currentUser.uid]: Date.now(),
+          },
+        },
+      };
+    });
+
     try {
       await update(ref(db, `threads/${threadId}`), {
         [`readBy/${currentUser.uid}`]: Date.now(),
@@ -351,31 +367,49 @@ export default function MessagingPanel({ currentUser, currentRole }) {
         otherRole: otherRoleValue,
       });
 
-      const existing = await get(threadRef);
+      let existing = null;
+      let existingThread = null;
+
+      try {
+        existing = await get(threadRef);
+        existingThread = existing.exists() ? existing.val() : null;
+      } catch (error) {
+        const message = String(error?.message || "");
+        if (!message.toLowerCase().includes("permission denied")) {
+          throw error;
+        }
+
+        console.info("[MessagingPanel] openThread:threadReadDeniedTreatAsNew", {
+          threadId,
+          path: `threads/${threadId}`,
+          reason: message,
+        });
+      }
+
       let threadRecord = buildThreadRecord({
         currentUid: currentUser.uid,
         currentRoleValue,
         otherUid: other.uid,
         otherRoleValue,
-        existingThread: existing.exists() ? existing.val() : null,
+        existingThread,
         now,
       });
 
       logMessagingDebug("openThread:existing", {
         threadId,
-        exists: existing.exists(),
-        existingThread: existing.exists() ? existing.val() : null,
+        exists: !!existingThread,
+        existingThread,
         nextThread: threadRecord,
       });
 
-      if (!existing.exists()) {
+      if (!existingThread) {
         logMessagingDebug("openThread:createThread", {
           threadId,
           path: `threads/${threadId}`,
         });
         await set(threadRef, threadRecord);
       } else {
-        const thread = existing.val();
+        const thread = existingThread;
         if (!sameParticipantPair(thread, currentUser.uid, other.uid)) {
           logMessagingDebug("openThread:invalidParticipants", {
             threadId,
@@ -499,7 +533,11 @@ export default function MessagingPanel({ currentUser, currentRole }) {
         title="Messages"
       >
         <MessageIcon className="icon" />
-        {totalUnread > 0 && <span className="header-badge">{totalUnread > 9 ? "9+" : totalUnread}</span>}
+        {totalUnread > 0 && (
+          <span className="header-badge" aria-hidden="true">
+            {totalUnread > 9 ? "9+" : totalUnread}
+          </span>
+        )}
       </button>
 
       {isOpen && (

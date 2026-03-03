@@ -168,7 +168,7 @@ export default function StudentDashboard({ user }) {
 
   return (
     <div className="app-container">
-      <div className="card" style={{ maxWidth: 640 }}>
+      <div className="card">
         <div className="card-header">
           <div>
             <h2>Student Dashboard</h2>
