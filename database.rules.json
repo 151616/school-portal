@@ -33,9 +33,10 @@
       }
     },
     "invites": {
-      ".read": "auth != null",
+      ".read": "auth != null && auth.token.admin === true",
       ".write": "auth != null && auth.token.admin === true",
       "$inviteId": {
+        ".read": true,
         ".validate": "newData.hasChildren(['email','role','studentId','createdAt','used','createdBy']) && newData.child('email').isString() && newData.child('email').val().matches(/^[^ @]+@[^ @]+\\.[^ @]+$/) && newData.child('role').isString() && newData.child('studentId').isString() && newData.child('createdBy').isString() && newData.child('used').isBoolean()"
       }
     },
@@ -70,10 +71,13 @@
     },
     "attendance": {
       "$classId": {
-        ".read": "auth != null && (auth.token.admin === true || root.child('classes').child($classId).child('teacherUid').val() == auth.uid || data.child(auth.uid).exists())",
+        ".read": "auth != null && (auth.token.admin === true || root.child('classes').child($classId).child('teacherUid').val() == auth.uid)",
         "$date": {
-          ".read": "auth != null && (auth.token.admin === true || root.child('classes').child($classId).child('teacherUid').val() == auth.uid || data.child(auth.uid).exists())",
-          ".write": "auth != null && (auth.token.admin === true || root.child('classes').child($classId).child('teacherUid').val() == auth.uid)"
+          ".read": "auth != null && (auth.token.admin === true || root.child('classes').child($classId).child('teacherUid').val() == auth.uid)",
+          ".write": "auth != null && (auth.token.admin === true || root.child('classes').child($classId).child('teacherUid').val() == auth.uid)",
+          "$studentUid": {
+            ".read": "auth != null && (auth.token.admin === true || root.child('classes').child($classId).child('teacherUid').val() == auth.uid || auth.uid == $studentUid)"
+          }
         }
       }
     },

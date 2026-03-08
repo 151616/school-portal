@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { auth, db, functions } from "./firebase";
 import {
@@ -23,6 +23,8 @@ export default function Signup() {
   const [lastInitial, setLastInitial] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const lastInitialRef = useRef(null);
+  const passwordRef = useRef(null);
 
   const inviteId = searchParams.get("inviteId");
 
@@ -58,6 +60,10 @@ export default function Signup() {
     if (submitting) return;
     if (!password) {
       addToast("error", "Enter a password!");
+      return;
+    }
+    if (password.length < 8) {
+      addToast("error", "Password must be at least 8 characters.");
       return;
     }
     if (!firstName.trim()) {
@@ -164,7 +170,7 @@ export default function Signup() {
         <Toasts />
         <div className="card-header">
           <h2>Signup</h2>
-          <div className="muted">Complete your account setup. Password must be at least 6 characters.</div>
+          <div className="muted">Complete your account setup. Password must be at least 8 characters.</div>
         </div>
 
         <div className="section">
@@ -181,21 +187,29 @@ export default function Signup() {
               placeholder="First name"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") lastInitialRef.current?.focus(); }}
+              autoComplete="given-name"
             />
             <input
+              ref={lastInitialRef}
               className="input auth-field"
               type="text"
               placeholder="Last initial"
               value={lastInitial}
               onChange={(e) => setLastInitial(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") passwordRef.current?.focus(); }}
               maxLength={1}
+              autoComplete="family-name"
             />
             <input
+              ref={passwordRef}
               className="input auth-field"
               type="password"
               placeholder="Set your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !submitting) handleSignup(); }}
+              autoComplete="new-password"
             />
             <button
               className="btn btn-primary auth-form-submit auth-action"

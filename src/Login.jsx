@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { signInWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "./firebase";
 import Toasts from './Toasts';
@@ -10,14 +10,16 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [resetEmail, setResetEmail] = useState("");
   const [showReset, setShowReset] = useState(false);
+  const passwordRef = useRef(null);
+  const resetEmailRef = useRef(null);
 
   const handleLogin = async () => {
     if (!email || !password) return addToast('error', 'Fill both fields!');
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
-     console.error("Full Firebase error:", error);
-      addToast('error', 'Login failed: ' + (error.message || error));
+      if (import.meta.env.DEV) console.error("Login error:", error);
+      addToast('error', 'Login failed. Please check your email and password.');
     }
   };
 
@@ -26,8 +28,8 @@ export default function Login() {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
     } catch (error) {
-      console.error("Google login error:", error);
-      addToast('error', 'Google sign-in failed: ' + (error.message || error));
+      if (import.meta.env.DEV) console.error("Google login error:", error);
+      addToast('error', 'Google sign-in failed. Please try again.');
     }
   };
 
@@ -42,8 +44,8 @@ export default function Login() {
       setShowReset(false);
       setResetEmail("");
     } catch (error) {
-      console.error("Reset error:", error);
-      addToast('error', 'Reset failed: ' + (error.message || error));
+      if (import.meta.env.DEV) console.error("Reset error:", error);
+      addToast('error', 'Unable to send reset email. Please try again.');
     }
   };
 
@@ -64,13 +66,18 @@ export default function Login() {
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") passwordRef.current?.focus(); }}
+              autoComplete="email"
             />
             <input
+              ref={passwordRef}
               className="input auth-field"
               type="password"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }}
+              autoComplete="current-password"
             />
 
             <button
@@ -94,7 +101,7 @@ export default function Login() {
 
               <button
                 className="btn btn-ghost auth-form-row-button auth-action"
-                onClick={() => setShowReset((s) => !s)}
+                onClick={() => setShowReset((s) => { if (!s) setTimeout(() => resetEmailRef.current?.focus(), 0); return !s; })}
               >
                 Forgot password?
               </button>
@@ -104,11 +111,14 @@ export default function Login() {
           {showReset && (
             <div className="auth-form-stack" style={{ marginTop: 10 }}>
               <input
+                ref={resetEmailRef}
                 className="input auth-field"
                 type="email"
                 placeholder="Enter your email to reset"
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleReset(); }}
+                autoComplete="email"
               />
               <button className="btn btn-ghost auth-form-submit auth-action" onClick={handleReset}>
                 Send reset email

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { ref, set, push, onValue, get, query, orderByChild, limitToLast } from "firebase/database";
 import { httpsCallable } from "firebase/functions";
 import { db, auth, functions, firebaseConfig } from "./firebase"; // make sure auth is imported
@@ -84,6 +84,10 @@ export default function AdminDashboard() {
   const [attendanceClassId, setAttendanceClassId] = useState("");
   const [attendanceSummary, setAttendanceSummary] = useState([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+
+  // Refs for keyboard navigation
+  const classNameInputRef = useRef(null);
+  const classTeacherInputRef = useRef(null);
 
   // Diagnostics UI state
   const [diagnostics, setDiagnostics] = useState({
@@ -820,10 +824,12 @@ export default function AdminDashboard() {
 
   const escapeCSV = (value) => {
     const text = String(value ?? "");
-    if (/[",\n]/.test(text)) {
-      return `"${text.replace(/"/g, '""')}"`;
+    // Prefix cells that start with formula-trigger chars to prevent CSV injection in Excel/Sheets
+    const safeText = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+    if (/[",\n]/.test(safeText)) {
+      return `"${safeText.replace(/"/g, '""')}"`;
     }
-    return text;
+    return safeText;
   };
 
   const downloadCSV = (filename, rows) => {
@@ -913,7 +919,7 @@ export default function AdminDashboard() {
         const id = String(row.classId || row.id || "").trim();
         const name = String(row.className || row.name || "").trim();
         const teacherEmail = String(row.teacherEmail || "").toLowerCase();
-        if (!id || !name || !teacherEmail) {
+        if (!id || !name || !teacherEmail || !CLASS_ID_REGEX.test(id)) {
           skipped += 1;
           continue;
         }
@@ -1065,10 +1071,6 @@ export default function AdminDashboard() {
         studentId: inviteResult.studentId,
       });
 
-      //Generate signup link (logged for admin convenience)
-      const signupUrl = `${window.location.origin}/signup?inviteId=${inviteResult.inviteId}`;
-      console.log('Signup link:', signupUrl);
-
       const idSuffix = inviteResult.studentId ? ` Student ID: ${inviteResult.studentId}` : "";
       addToast('success', `Invite created for ${inviteResult.email}!${idSuffix}`);
 
@@ -1082,9 +1084,15 @@ export default function AdminDashboard() {
     }
   }; 
 
+  const CLASS_ID_REGEX = /^[a-zA-Z0-9_-]{1,64}$/;
+
   const handleCreateClass = async () => {
     if (!classId.trim()) {
       addToast("error", "Enter a class ID");
+      return;
+    }
+    if (!CLASS_ID_REGEX.test(classId.trim())) {
+      addToast("error", "Class ID may only contain letters, numbers, hyphens, and underscores (max 64 chars)");
       return;
     }
     if (!className.trim()) {
@@ -1479,13 +1487,9 @@ export default function AdminDashboard() {
                   placeholder="User Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !loading) handleAddUser(); }}
+                  autoComplete="off"
                 />
-
-                <select className="select" value={role} onChange={(e) => setRole(e.target.value)}>
-                  {userSection === "students" && <option value="student">Student</option>}
-                  {userSection === "teachers" && <option value="teacher">Teacher</option>}
-                  {userSection === "admins" && <option value="admin">Admin</option>}
-                </select>
 
                 <button className="btn btn-primary" onClick={(e) => { const btn = e.currentTarget; btn.classList.add('pulse'); setTimeout(() => btn.classList.remove('pulse'), 260); handleAddUser(); }} disabled={loading}>
                   {loading ? 'Creating...' : (<><PlusIcon className="icon"/> Create Invite</>)}
@@ -1591,7 +1595,7 @@ export default function AdminDashboard() {
               <h3>Classes</h3>
               <div className="small">Create classes, assign a teacher, and enroll students by Student ID.</div>
 
-              <div className="small" style={{ marginTop: 16 }}>Enrollment</div>
+              <div className="small" style={{ marginTop: 16 }}>Create Class</div>
               <div className="form-row" style={{ marginTop: 8 }}>
                 <input
                   className="input"
@@ -1599,16 +1603,20 @@ export default function AdminDashboard() {
                   placeholder="Class ID (e.g. math101)"
                   value={classId}
                   onChange={(e) => setClassId(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") classNameInputRef.current?.focus(); }}
                 />
                 <input
+                  ref={classNameInputRef}
                   className="input"
                   type="text"
                   placeholder="Class name"
                   value={className}
                   onChange={(e) => setClassName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") classTeacherInputRef.current?.focus(); }}
                 />
                 <div className="autocomplete">
                   <input
+                    ref={classTeacherInputRef}
                     className="input"
                     type="text"
                     placeholder="Select teacher (name or email)"
@@ -1620,6 +1628,7 @@ export default function AdminDashboard() {
                     }}
                     onFocus={() => setShowClassTeacherSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowClassTeacherSuggestions(false), 120)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && classTeacherUid) { setShowClassTeacherSuggestions(false); handleCreateClass(); } }}
                   />
                   {showClassTeacherSuggestions && filteredClassTeachers.length > 0 && (
                     <div className="autocomplete-menu" role="listbox">
@@ -1835,26 +1844,28 @@ export default function AdminDashboard() {
                     onFocus={() => setShowEnrollSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowEnrollSuggestions(false), 120)}
                     onKeyDown={(e) => {
-                      if (!showEnrollSuggestions || filteredEnrollStudents.length === 0) return;
-                      if (e.key === "ArrowDown") {
+                      if (e.key === "ArrowDown" && showEnrollSuggestions && filteredEnrollStudents.length > 0) {
                         e.preventDefault();
                         setEnrollStudentActive((i) =>
                           i < filteredEnrollStudents.length - 1 ? i + 1 : 0
                         );
-                      } else if (e.key === "ArrowUp") {
+                      } else if (e.key === "ArrowUp" && showEnrollSuggestions && filteredEnrollStudents.length > 0) {
                         e.preventDefault();
                         setEnrollStudentActive((i) =>
                           i > 0 ? i - 1 : filteredEnrollStudents.length - 1
                         );
                       } else if (e.key === "Enter") {
                         e.preventDefault();
-                        const idx = enrollStudentActive;
-                        const u =
-                          idx >= 0 ? filteredEnrollStudents[idx] : filteredEnrollStudents[0];
-                        if (u) {
-                          setEnrollStudentQuery(formatStudentLabel(u));
-                          setEnrollStudentSelectedUid(u.uid);
-                          setShowEnrollSuggestions(false);
+                        if (showEnrollSuggestions && filteredEnrollStudents.length > 0) {
+                          const idx = enrollStudentActive;
+                          const u = idx >= 0 ? filteredEnrollStudents[idx] : filteredEnrollStudents[0];
+                          if (u) {
+                            setEnrollStudentQuery(formatStudentLabel(u));
+                            setEnrollStudentSelectedUid(u.uid);
+                            setShowEnrollSuggestions(false);
+                          }
+                        } else if (enrollStudentSelectedUid || enrollStudentQuery) {
+                          handleEnrollStudent();
                         }
                       }
                     }}

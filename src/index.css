@@ -583,3 +583,15 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .btn, .icon, .toast { transition: none !important; animation: none !important; }
 }
+
+/* Auth-specific size overrides — must appear after .input and .btn to win the cascade */
+.auth-field {
+  min-height: 34px;
+  padding: 7px 11px;
+  font-size: 0.95rem;
+}
+.auth-action {
+  min-height: 34px;
+  padding: 7px 12px;
+  font-size: 0.94rem;
+}
