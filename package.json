@@ -13,6 +13,7 @@
     "cleanup-emails": "node scripts/cleanup_emails.js"
   },
   "dependencies": {
+    "@dataconnect/admin-generated": "file:src/dataconnect-admin-generated",
     "firebase": "^12.10.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

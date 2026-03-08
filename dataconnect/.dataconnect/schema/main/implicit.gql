@@ -1,0 +1,60 @@
+extend type Assignment {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "Assignment", purpose: IMPLICIT_KEY_FIELD)
+  """
+  ✨ Implicit foreign key field based on `Assignment`.`course`. It must match the value of `Course`.`id`. See `@ref` for how to customize it.
+  """
+  courseId: UUID! @fdc_generated(from: "Assignment.course", purpose: IMPLICIT_REF_FIELD)
+}
+extend type Course {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "Course", purpose: IMPLICIT_KEY_FIELD)
+  """
+  ✨ Implicit foreign key field based on `Course`.`teacher`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
+  """
+  teacherId: UUID @fdc_generated(from: "Course.teacher", purpose: IMPLICIT_REF_FIELD)
+}
+extend type Enrollment {
+  """
+  ✨ Implicit foreign key field based on `Enrollment`.`student`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
+  """
+  studentId: UUID! @fdc_generated(from: "Enrollment.student", purpose: IMPLICIT_REF_FIELD)
+  """
+  ✨ Implicit foreign key field based on `Enrollment`.`course`. It must match the value of `Course`.`id`. See `@ref` for how to customize it.
+  """
+  courseId: UUID! @fdc_generated(from: "Enrollment.course", purpose: IMPLICIT_REF_FIELD)
+}
+extend type Grade {
+  """
+  ✨ Implicit foreign key field based on `Grade`.`enrollment`. It must match the value of `Enrollment`.`studentId`. See `@ref` for how to customize it.
+  """
+  enrollmentStudentId: UUID! @fdc_generated(from: "Grade.enrollment", purpose: IMPLICIT_REF_FIELD)
+  """
+  ✨ Implicit foreign key field based on `Grade`.`enrollment`. It must match the value of `Enrollment`.`courseId`. See `@ref` for how to customize it.
+  """
+  enrollmentCourseId: UUID! @fdc_generated(from: "Grade.enrollment", purpose: IMPLICIT_REF_FIELD)
+  """
+  ✨ Implicit foreign key field based on `Grade`.`assignment`. It must match the value of `Assignment`.`id`. See `@ref` for how to customize it.
+  """
+  assignmentId: UUID! @fdc_generated(from: "Grade.assignment", purpose: IMPLICIT_REF_FIELD)
+}
+extend type ScheduleEntry {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "ScheduleEntry", purpose: IMPLICIT_KEY_FIELD)
+  """
+  ✨ Implicit foreign key field based on `ScheduleEntry`.`course`. It must match the value of `Course`.`id`. See `@ref` for how to customize it.
+  """
+  courseId: UUID! @fdc_generated(from: "ScheduleEntry.course", purpose: IMPLICIT_REF_FIELD)
+}
+extend type User {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "User", purpose: IMPLICIT_KEY_FIELD)
+}

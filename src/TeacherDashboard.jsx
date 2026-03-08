@@ -364,6 +364,20 @@ export default function TeacherDashboard({ user }) {
             <h2>Teacher Dashboard</h2>
             <div className="muted">Select a class and enter grades for an assignment.</div>
           </div>
+          {!loading && classes.length > 0 && (
+            <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+              <div className="stat-card" style={{ minWidth: 80, textAlign: "center" }}>
+                <div className="stat-card-value" style={{ justifyContent: "center" }}>{classes.length}</div>
+                <div className="stat-card-label">Classes</div>
+              </div>
+              {selectedClass && (
+                <div className="stat-card" style={{ minWidth: 80, textAlign: "center" }}>
+                  <div className="stat-card-value" style={{ justifyContent: "center" }}>{roster.length}</div>
+                  <div className="stat-card-label">Students</div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="section">
@@ -475,27 +489,14 @@ export default function TeacherDashboard({ user }) {
               ) : (
                 <div className="card-list">
                   {filteredRoster.map((s) => (
-                    <div
-                      key={s.uid}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "10px 0",
-                        borderBottom: "1px solid #eee",
-                      }}
-                    >
+                    <div key={s.uid} className="roster-row">
                       <div style={{ cursor: "pointer" }} onClick={() => { setSelectedStudent(s); loadStudentHistory(s); }}>
-                        <div>
-                          {s.firstName || "Student"} {s.lastInitial ? `${s.lastInitial}.` : ""}
-                        </div>
-                        <div className="meta">
-                          {s.email} {s.studentId ? `• ID: ${s.studentId}` : ""}
-                        </div>
+                        <div>{s.firstName || "Student"} {s.lastInitial ? `${s.lastInitial}.` : ""}</div>
+                        <div className="meta">{s.email}{s.studentId ? ` · ID: ${s.studentId}` : ""}</div>
                       </div>
                       <input
                         className="input"
-                        style={{ maxWidth: 120 }}
+                        style={{ maxWidth: 110, flex: "none" }}
                         type="number"
                         placeholder="Score"
                         value={scores[s.uid] ?? ""}
@@ -600,32 +601,18 @@ export default function TeacherDashboard({ user }) {
           </div>
 
           {selectedClass ? (
-            <div className="card-list" style={{ marginTop: 10 }}>
+            <div style={{ marginTop: 10 }}>
               {roster.map((s) => (
-                <div
-                  key={s.uid}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "10px 0",
-                    borderBottom: "1px solid #eee",
-                  }}
-                >
+                <div key={s.uid} className="roster-row">
                   <div>
-                    <div>
-                      {s.firstName || "Student"} {s.lastInitial ? `${s.lastInitial}.` : ""}
-                    </div>
-                    <div className="meta">
-                      {s.email}{s.studentId ? ` - ID: ${s.studentId}` : ""}
-                    </div>
+                    <div>{s.firstName || "Student"} {s.lastInitial ? `${s.lastInitial}.` : ""}</div>
+                    <div className="meta">{s.email}{s.studentId ? ` · ID: ${s.studentId}` : ""}</div>
                   </div>
                   <select
                     className="select"
+                    style={{ width: 110 }}
                     value={attendance[s.uid] || "present"}
-                    onChange={(e) =>
-                      setAttendance((prev) => ({ ...prev, [s.uid]: e.target.value }))
-                    }
+                    onChange={(e) => setAttendance((prev) => ({ ...prev, [s.uid]: e.target.value }))}
                   >
                     <option value="present">Present</option>
                     <option value="tardy">Tardy</option>
@@ -647,9 +634,12 @@ export default function TeacherDashboard({ user }) {
                   <li key={row.uid}>
                     <div>
                       <div>{row.name}</div>
-                      <div className="meta">
-                        Present {row.present || 0} · Tardy {row.tardy || 0} · Absent {row.absent || 0}
-                        {row.absent >= 2 ? " · Missed days flag" : ""}
+                      <div className="meta" style={{ marginTop: 4, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <span className="attend-badge present">P: {row.present || 0}</span>
+                        <span className="attend-badge tardy">T: {row.tardy || 0}</span>
+                        <span className="attend-badge absent">A: {row.absent || 0}</span>
+                        {(row.excused || 0) > 0 && <span className="attend-badge excused">E: {row.excused}</span>}
+                        {(row.absent || 0) >= 2 && <span style={{ fontSize: "0.75rem", color: "#c02020", fontWeight: 600 }}>⚑ Attendance concern</span>}
                       </div>
                     </div>
                   </li>

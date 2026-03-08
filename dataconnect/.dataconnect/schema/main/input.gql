@@ -1,0 +1,1670 @@
+"""
+✨ `Assignment_KeyOutput` returns the primary key fields of table type `Assignment`.
+
+It has the same format as `Assignment_Key`, but is only used as mutation return value.
+"""
+scalar Assignment_KeyOutput
+"""
+✨ `Course_KeyOutput` returns the primary key fields of table type `Course`.
+
+It has the same format as `Course_Key`, but is only used as mutation return value.
+"""
+scalar Course_KeyOutput
+"""
+✨ `Enrollment_KeyOutput` returns the primary key fields of table type `Enrollment`.
+
+It has the same format as `Enrollment_Key`, but is only used as mutation return value.
+"""
+scalar Enrollment_KeyOutput
+"""
+✨ `Grade_KeyOutput` returns the primary key fields of table type `Grade`.
+
+It has the same format as `Grade_Key`, but is only used as mutation return value.
+"""
+scalar Grade_KeyOutput
+"""
+✨ `ScheduleEntry_KeyOutput` returns the primary key fields of table type `ScheduleEntry`.
+
+It has the same format as `ScheduleEntry_Key`, but is only used as mutation return value.
+"""
+scalar ScheduleEntry_KeyOutput
+"""
+✨ `User_KeyOutput` returns the primary key fields of table type `User`.
+
+It has the same format as `User_Key`, but is only used as mutation return value.
+"""
+scalar User_KeyOutput
+"""
+✨ Generated data input type for table 'Assignment'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Assignment_Data {
+  """
+  ✨ Generated from Field `Assignment`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Assignment`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Assignment`.`courseId` of type `UUID!`
+  """
+  courseId: UUID
+  """
+  ✨ `_expr` server value variant of `courseId` (✨ Generated from Field `Assignment`.`courseId` of type `UUID!`)
+  """
+  courseId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Assignment`.`course` of type `Course!`
+  """
+  course: Course_Key
+  """
+  ✨ Generated from Field `Assignment`.`description` of type `String`
+  """
+  description: String
+  """
+  ✨ `_expr` server value variant of `description` (✨ Generated from Field `Assignment`.`description` of type `String`)
+  """
+  description_expr: String_Expr
+  """
+  ✨ Generated from Field `Assignment`.`dueDate` of type `Timestamp!`
+  """
+  dueDate: Timestamp
+  """
+  ✨ `_expr` server value variant of `dueDate` (✨ Generated from Field `Assignment`.`dueDate` of type `Timestamp!`)
+  """
+  dueDate_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `dueDate` (✨ Generated from Field `Assignment`.`dueDate` of type `Timestamp!`)
+  """
+  dueDate_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `dueDate` (✨ Generated from Field `Assignment`.`dueDate` of type `Timestamp!`)
+  """
+  dueDate_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints` of type `Int!`
+  """
+  maxPoints: Int
+  """
+  ✨ `_expr` server value variant of `maxPoints` (✨ Generated from Field `Assignment`.`maxPoints` of type `Int!`)
+  """
+  maxPoints_expr: Int_Expr
+  """
+  ✨ `_update` server value variant of `maxPoints` (✨ Generated from Field `Assignment`.`maxPoints` of type `Int!`)
+  """
+  maxPoints_update: [Int_Update!]
+  """
+  ✨ Generated from Field `Assignment`.`name` of type `String!`
+  """
+  name: String
+  """
+  ✨ `_expr` server value variant of `name` (✨ Generated from Field `Assignment`.`name` of type `String!`)
+  """
+  name_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'Assignment'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Assignment_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Assignment_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Assignment_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Assignment_Filter!]
+  """
+  ✨ Generated from Field `Assignment`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Assignment`.`courseId` of type `UUID!`
+  """
+  courseId: UUID_Filter
+  """
+  ✨ Generated from Field `Assignment`.`course` of type `Course!`
+  """
+  course: Course_Filter
+  """
+  ✨ Generated from Field `Assignment`.`description` of type `String`
+  """
+  description: String_Filter
+  """
+  ✨ Generated from Field `Assignment`.`dueDate` of type `Timestamp!`
+  """
+  dueDate: Timestamp_Filter
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints` of type `Int!`
+  """
+  maxPoints: Int_Filter
+  """
+  ✨ Generated from Field `Assignment`.`name` of type `String!`
+  """
+  name: String_Filter
+  """
+  ✨ Generated from Field `Assignment`.`grades_on_assignment` of type `[Grade!]!`
+  """
+  grades_on_assignment: Grade_ListFilter
+  """
+  ✨ Generated from Field `Assignment`.`enrollments_via_Grade` of type `[Enrollment!]!`
+  """
+  enrollments_via_Grade: Enrollment_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'Assignment'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Assignment_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Assignment_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Assignment_Filter
+}
+"""
+✨ Generated having input type for table 'Assignment'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Assignment_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Assignment_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Assignment_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Assignment_Having!]
+  """
+  ✨ Generated from Field `Assignment`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Assignment`.`courseId_count` of type `Int!`
+  """
+  courseId_count: Int_Filter
+  """
+  ✨ Generated from Field `Assignment`.`description_count` of type `Int!`
+  """
+  description_count: Int_Filter
+  """
+  ✨ Generated from Field `Assignment`.`dueDate_count` of type `Int!`
+  """
+  dueDate_count: Int_Filter
+  """
+  ✨ Generated from Field `Assignment`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints_count` of type `Int!`
+  """
+  maxPoints_count: Int_Filter
+  """
+  ✨ Generated from Field `Assignment`.`name_count` of type `Int!`
+  """
+  name_count: Int_Filter
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints_sum` of type `Int`
+  """
+  maxPoints_sum: Int_Filter
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints_avg` of type `Float`
+  """
+  maxPoints_avg: Float_Filter
+  """
+  ✨ Generated from Field `Assignment`.`dueDate_min` of type `Timestamp`
+  """
+  dueDate_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints_min` of type `Int`
+  """
+  maxPoints_min: Int_Filter
+  """
+  ✨ Generated from Field `Assignment`.`dueDate_max` of type `Timestamp`
+  """
+  dueDate_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints_max` of type `Int`
+  """
+  maxPoints_max: Int_Filter
+}
+"""
+✨ Generated key input type for table 'Assignment'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Assignment_Key {
+  """
+  ✨ Generated from Field `Assignment`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Assignment`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'Assignment'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Assignment_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Assignment_Filter
+}
+"""
+✨ Generated order input type for table 'Assignment'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Assignment_Order {
+  """
+  ✨ Generated from Field `Assignment`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`courseId` of type `UUID!`
+  """
+  courseId: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`course` of type `Course!`
+  """
+  course: Course_Order
+  """
+  ✨ Generated from Field `Assignment`.`description` of type `String`
+  """
+  description: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`dueDate` of type `Timestamp!`
+  """
+  dueDate: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints` of type `Int!`
+  """
+  maxPoints: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`name` of type `String!`
+  """
+  name: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`courseId_count` of type `Int!`
+  """
+  courseId_count: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`description_count` of type `Int!`
+  """
+  description_count: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`dueDate_count` of type `Int!`
+  """
+  dueDate_count: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints_count` of type `Int!`
+  """
+  maxPoints_count: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`name_count` of type `Int!`
+  """
+  name_count: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints_sum` of type `Int`
+  """
+  maxPoints_sum: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints_avg` of type `Float`
+  """
+  maxPoints_avg: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`dueDate_min` of type `Timestamp`
+  """
+  dueDate_min: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints_min` of type `Int`
+  """
+  maxPoints_min: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`dueDate_max` of type `Timestamp`
+  """
+  dueDate_max: OrderDirection
+  """
+  ✨ Generated from Field `Assignment`.`maxPoints_max` of type `Int`
+  """
+  maxPoints_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Course'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Course_Data {
+  """
+  ✨ Generated from Field `Course`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Course`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Course`.`teacherId` of type `UUID`
+  """
+  teacherId: UUID
+  """
+  ✨ `_expr` server value variant of `teacherId` (✨ Generated from Field `Course`.`teacherId` of type `UUID`)
+  """
+  teacherId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Course`.`teacher` of type `User`
+  """
+  teacher: User_Key
+  """
+  ✨ Generated from Field `Course`.`courseCode` of type `String!`
+  """
+  courseCode: String
+  """
+  ✨ `_expr` server value variant of `courseCode` (✨ Generated from Field `Course`.`courseCode` of type `String!`)
+  """
+  courseCode_expr: String_Expr
+  """
+  ✨ Generated from Field `Course`.`description` of type `String`
+  """
+  description: String
+  """
+  ✨ `_expr` server value variant of `description` (✨ Generated from Field `Course`.`description` of type `String`)
+  """
+  description_expr: String_Expr
+  """
+  ✨ Generated from Field `Course`.`name` of type `String!`
+  """
+  name: String
+  """
+  ✨ `_expr` server value variant of `name` (✨ Generated from Field `Course`.`name` of type `String!`)
+  """
+  name_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'Course'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Course_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Course_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Course_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Course_Filter!]
+  """
+  ✨ Generated from Field `Course`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Course`.`teacherId` of type `UUID`
+  """
+  teacherId: UUID_Filter
+  """
+  ✨ Generated from Field `Course`.`teacher` of type `User`
+  """
+  teacher: User_Filter
+  """
+  ✨ Generated from Field `Course`.`courseCode` of type `String!`
+  """
+  courseCode: String_Filter
+  """
+  ✨ Generated from Field `Course`.`description` of type `String`
+  """
+  description: String_Filter
+  """
+  ✨ Generated from Field `Course`.`name` of type `String!`
+  """
+  name: String_Filter
+  """
+  ✨ Generated from Field `Course`.`assignments_on_course` of type `[Assignment!]!`
+  """
+  assignments_on_course: Assignment_ListFilter
+  """
+  ✨ Generated from Field `Course`.`enrollments_on_course` of type `[Enrollment!]!`
+  """
+  enrollments_on_course: Enrollment_ListFilter
+  """
+  ✨ Generated from Field `Course`.`scheduleEntries_on_course` of type `[ScheduleEntry!]!`
+  """
+  scheduleEntries_on_course: ScheduleEntry_ListFilter
+  """
+  ✨ Generated from Field `Course`.`users_via_Enrollment` of type `[User!]!`
+  """
+  users_via_Enrollment: User_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'Course'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Course_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Course_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Course_Filter
+}
+"""
+✨ Generated having input type for table 'Course'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Course_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Course_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Course_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Course_Having!]
+  """
+  ✨ Generated from Field `Course`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Course`.`courseCode_count` of type `Int!`
+  """
+  courseCode_count: Int_Filter
+  """
+  ✨ Generated from Field `Course`.`description_count` of type `Int!`
+  """
+  description_count: Int_Filter
+  """
+  ✨ Generated from Field `Course`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Course`.`name_count` of type `Int!`
+  """
+  name_count: Int_Filter
+  """
+  ✨ Generated from Field `Course`.`teacherId_count` of type `Int!`
+  """
+  teacherId_count: Int_Filter
+}
+"""
+✨ Generated key input type for table 'Course'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Course_Key {
+  """
+  ✨ Generated from Field `Course`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Course`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'Course'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Course_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Course_Filter
+}
+"""
+✨ Generated order input type for table 'Course'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Course_Order {
+  """
+  ✨ Generated from Field `Course`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Course`.`teacherId` of type `UUID`
+  """
+  teacherId: OrderDirection
+  """
+  ✨ Generated from Field `Course`.`teacher` of type `User`
+  """
+  teacher: User_Order
+  """
+  ✨ Generated from Field `Course`.`courseCode` of type `String!`
+  """
+  courseCode: OrderDirection
+  """
+  ✨ Generated from Field `Course`.`description` of type `String`
+  """
+  description: OrderDirection
+  """
+  ✨ Generated from Field `Course`.`name` of type `String!`
+  """
+  name: OrderDirection
+  """
+  ✨ Generated from Field `Course`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Course`.`courseCode_count` of type `Int!`
+  """
+  courseCode_count: OrderDirection
+  """
+  ✨ Generated from Field `Course`.`description_count` of type `Int!`
+  """
+  description_count: OrderDirection
+  """
+  ✨ Generated from Field `Course`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Course`.`name_count` of type `Int!`
+  """
+  name_count: OrderDirection
+  """
+  ✨ Generated from Field `Course`.`teacherId_count` of type `Int!`
+  """
+  teacherId_count: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Enrollment'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Enrollment_Data {
+  """
+  ✨ Generated from Field `Enrollment`.`studentId` of type `UUID!`
+  """
+  studentId: UUID
+  """
+  ✨ `_expr` server value variant of `studentId` (✨ Generated from Field `Enrollment`.`studentId` of type `UUID!`)
+  """
+  studentId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Enrollment`.`courseId` of type `UUID!`
+  """
+  courseId: UUID
+  """
+  ✨ `_expr` server value variant of `courseId` (✨ Generated from Field `Enrollment`.`courseId` of type `UUID!`)
+  """
+  courseId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Enrollment`.`course` of type `Course!`
+  """
+  course: Course_Key
+  """
+  ✨ Generated from Field `Enrollment`.`student` of type `User!`
+  """
+  student: User_Key
+  """
+  ✨ Generated from Field `Enrollment`.`enrollmentDate` of type `Date!`
+  """
+  enrollmentDate: Date
+  """
+  ✨ `_date` server value variant of `enrollmentDate` (✨ Generated from Field `Enrollment`.`enrollmentDate` of type `Date!`)
+  """
+  enrollmentDate_date: Date_Relative
+  """
+  ✨ `_expr` server value variant of `enrollmentDate` (✨ Generated from Field `Enrollment`.`enrollmentDate` of type `Date!`)
+  """
+  enrollmentDate_expr: Date_Expr
+  """
+  ✨ `_update` server value variant of `enrollmentDate` (✨ Generated from Field `Enrollment`.`enrollmentDate` of type `Date!`)
+  """
+  enrollmentDate_update: [Date_Update!]
+}
+"""
+✨ Generated filter input type for table 'Enrollment'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Enrollment_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Enrollment_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Enrollment_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Enrollment_Filter!]
+  """
+  ✨ Generated from Field `Enrollment`.`studentId` of type `UUID!`
+  """
+  studentId: UUID_Filter
+  """
+  ✨ Generated from Field `Enrollment`.`courseId` of type `UUID!`
+  """
+  courseId: UUID_Filter
+  """
+  ✨ Generated from Field `Enrollment`.`course` of type `Course!`
+  """
+  course: Course_Filter
+  """
+  ✨ Generated from Field `Enrollment`.`student` of type `User!`
+  """
+  student: User_Filter
+  """
+  ✨ Generated from Field `Enrollment`.`enrollmentDate` of type `Date!`
+  """
+  enrollmentDate: Date_Filter
+  """
+  ✨ Generated from Field `Enrollment`.`grades_on_enrollment` of type `[Grade!]!`
+  """
+  grades_on_enrollment: Grade_ListFilter
+  """
+  ✨ Generated from Field `Enrollment`.`assignments_via_Grade` of type `[Assignment!]!`
+  """
+  assignments_via_Grade: Assignment_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'Enrollment'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Enrollment_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Enrollment_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Enrollment_Filter
+}
+"""
+✨ Generated having input type for table 'Enrollment'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Enrollment_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Enrollment_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Enrollment_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Enrollment_Having!]
+  """
+  ✨ Generated from Field `Enrollment`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Enrollment`.`courseId_count` of type `Int!`
+  """
+  courseId_count: Int_Filter
+  """
+  ✨ Generated from Field `Enrollment`.`enrollmentDate_count` of type `Int!`
+  """
+  enrollmentDate_count: Int_Filter
+  """
+  ✨ Generated from Field `Enrollment`.`studentId_count` of type `Int!`
+  """
+  studentId_count: Int_Filter
+  """
+  ✨ Generated from Field `Enrollment`.`enrollmentDate_min` of type `Date`
+  """
+  enrollmentDate_min: Date_Filter
+  """
+  ✨ Generated from Field `Enrollment`.`enrollmentDate_max` of type `Date`
+  """
+  enrollmentDate_max: Date_Filter
+}
+"""
+✨ Generated key input type for table 'Enrollment'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Enrollment_Key {
+  """
+  ✨ Generated from Field `Enrollment`.`studentId` of type `UUID!`
+  """
+  studentId: UUID
+  """
+  ✨ `_expr` server value variant of `studentId` (✨ Generated from Field `Enrollment`.`studentId` of type `UUID!`)
+  """
+  studentId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Enrollment`.`courseId` of type `UUID!`
+  """
+  courseId: UUID
+  """
+  ✨ `_expr` server value variant of `courseId` (✨ Generated from Field `Enrollment`.`courseId` of type `UUID!`)
+  """
+  courseId_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'Enrollment'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Enrollment_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Enrollment_Filter
+}
+"""
+✨ Generated order input type for table 'Enrollment'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Enrollment_Order {
+  """
+  ✨ Generated from Field `Enrollment`.`studentId` of type `UUID!`
+  """
+  studentId: OrderDirection
+  """
+  ✨ Generated from Field `Enrollment`.`courseId` of type `UUID!`
+  """
+  courseId: OrderDirection
+  """
+  ✨ Generated from Field `Enrollment`.`course` of type `Course!`
+  """
+  course: Course_Order
+  """
+  ✨ Generated from Field `Enrollment`.`student` of type `User!`
+  """
+  student: User_Order
+  """
+  ✨ Generated from Field `Enrollment`.`enrollmentDate` of type `Date!`
+  """
+  enrollmentDate: OrderDirection
+  """
+  ✨ Generated from Field `Enrollment`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Enrollment`.`courseId_count` of type `Int!`
+  """
+  courseId_count: OrderDirection
+  """
+  ✨ Generated from Field `Enrollment`.`enrollmentDate_count` of type `Int!`
+  """
+  enrollmentDate_count: OrderDirection
+  """
+  ✨ Generated from Field `Enrollment`.`studentId_count` of type `Int!`
+  """
+  studentId_count: OrderDirection
+  """
+  ✨ Generated from Field `Enrollment`.`enrollmentDate_min` of type `Date`
+  """
+  enrollmentDate_min: OrderDirection
+  """
+  ✨ Generated from Field `Enrollment`.`enrollmentDate_max` of type `Date`
+  """
+  enrollmentDate_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Grade'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Grade_Data {
+  """
+  ✨ Generated from Field `Grade`.`enrollmentStudentId` of type `UUID!`
+  """
+  enrollmentStudentId: UUID
+  """
+  ✨ `_expr` server value variant of `enrollmentStudentId` (✨ Generated from Field `Grade`.`enrollmentStudentId` of type `UUID!`)
+  """
+  enrollmentStudentId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Grade`.`enrollmentCourseId` of type `UUID!`
+  """
+  enrollmentCourseId: UUID
+  """
+  ✨ `_expr` server value variant of `enrollmentCourseId` (✨ Generated from Field `Grade`.`enrollmentCourseId` of type `UUID!`)
+  """
+  enrollmentCourseId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Grade`.`assignmentId` of type `UUID!`
+  """
+  assignmentId: UUID
+  """
+  ✨ `_expr` server value variant of `assignmentId` (✨ Generated from Field `Grade`.`assignmentId` of type `UUID!`)
+  """
+  assignmentId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Grade`.`assignment` of type `Assignment!`
+  """
+  assignment: Assignment_Key
+  """
+  ✨ Generated from Field `Grade`.`enrollment` of type `Enrollment!`
+  """
+  enrollment: Enrollment_Key
+  """
+  ✨ Generated from Field `Grade`.`gradedDate` of type `Date!`
+  """
+  gradedDate: Date
+  """
+  ✨ `_date` server value variant of `gradedDate` (✨ Generated from Field `Grade`.`gradedDate` of type `Date!`)
+  """
+  gradedDate_date: Date_Relative
+  """
+  ✨ `_expr` server value variant of `gradedDate` (✨ Generated from Field `Grade`.`gradedDate` of type `Date!`)
+  """
+  gradedDate_expr: Date_Expr
+  """
+  ✨ `_update` server value variant of `gradedDate` (✨ Generated from Field `Grade`.`gradedDate` of type `Date!`)
+  """
+  gradedDate_update: [Date_Update!]
+  """
+  ✨ Generated from Field `Grade`.`score` of type `Float!`
+  """
+  score: Float
+  """
+  ✨ `_expr` server value variant of `score` (✨ Generated from Field `Grade`.`score` of type `Float!`)
+  """
+  score_expr: Float_Expr
+  """
+  ✨ `_update` server value variant of `score` (✨ Generated from Field `Grade`.`score` of type `Float!`)
+  """
+  score_update: [Float_Update!]
+}
+"""
+✨ Generated filter input type for table 'Grade'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Grade_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Grade_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Grade_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Grade_Filter!]
+  """
+  ✨ Generated from Field `Grade`.`enrollmentStudentId` of type `UUID!`
+  """
+  enrollmentStudentId: UUID_Filter
+  """
+  ✨ Generated from Field `Grade`.`enrollmentCourseId` of type `UUID!`
+  """
+  enrollmentCourseId: UUID_Filter
+  """
+  ✨ Generated from Field `Grade`.`assignmentId` of type `UUID!`
+  """
+  assignmentId: UUID_Filter
+  """
+  ✨ Generated from Field `Grade`.`assignment` of type `Assignment!`
+  """
+  assignment: Assignment_Filter
+  """
+  ✨ Generated from Field `Grade`.`enrollment` of type `Enrollment!`
+  """
+  enrollment: Enrollment_Filter
+  """
+  ✨ Generated from Field `Grade`.`gradedDate` of type `Date!`
+  """
+  gradedDate: Date_Filter
+  """
+  ✨ Generated from Field `Grade`.`score` of type `Float!`
+  """
+  score: Float_Filter
+}
+"""
+✨ Generated first-row input type for table 'Grade'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Grade_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Grade_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Grade_Filter
+}
+"""
+✨ Generated having input type for table 'Grade'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Grade_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Grade_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Grade_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Grade_Having!]
+  """
+  ✨ Generated from Field `Grade`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Grade`.`assignmentId_count` of type `Int!`
+  """
+  assignmentId_count: Int_Filter
+  """
+  ✨ Generated from Field `Grade`.`enrollmentCourseId_count` of type `Int!`
+  """
+  enrollmentCourseId_count: Int_Filter
+  """
+  ✨ Generated from Field `Grade`.`enrollmentStudentId_count` of type `Int!`
+  """
+  enrollmentStudentId_count: Int_Filter
+  """
+  ✨ Generated from Field `Grade`.`gradedDate_count` of type `Int!`
+  """
+  gradedDate_count: Int_Filter
+  """
+  ✨ Generated from Field `Grade`.`score_count` of type `Int!`
+  """
+  score_count: Int_Filter
+  """
+  ✨ Generated from Field `Grade`.`score_sum` of type `Float`
+  """
+  score_sum: Float_Filter
+  """
+  ✨ Generated from Field `Grade`.`score_avg` of type `Float`
+  """
+  score_avg: Float_Filter
+  """
+  ✨ Generated from Field `Grade`.`gradedDate_min` of type `Date`
+  """
+  gradedDate_min: Date_Filter
+  """
+  ✨ Generated from Field `Grade`.`score_min` of type `Float`
+  """
+  score_min: Float_Filter
+  """
+  ✨ Generated from Field `Grade`.`gradedDate_max` of type `Date`
+  """
+  gradedDate_max: Date_Filter
+  """
+  ✨ Generated from Field `Grade`.`score_max` of type `Float`
+  """
+  score_max: Float_Filter
+}
+"""
+✨ Generated key input type for table 'Grade'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Grade_Key {
+  """
+  ✨ Generated from Field `Grade`.`enrollmentStudentId` of type `UUID!`
+  """
+  enrollmentStudentId: UUID
+  """
+  ✨ `_expr` server value variant of `enrollmentStudentId` (✨ Generated from Field `Grade`.`enrollmentStudentId` of type `UUID!`)
+  """
+  enrollmentStudentId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Grade`.`enrollmentCourseId` of type `UUID!`
+  """
+  enrollmentCourseId: UUID
+  """
+  ✨ `_expr` server value variant of `enrollmentCourseId` (✨ Generated from Field `Grade`.`enrollmentCourseId` of type `UUID!`)
+  """
+  enrollmentCourseId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Grade`.`assignmentId` of type `UUID!`
+  """
+  assignmentId: UUID
+  """
+  ✨ `_expr` server value variant of `assignmentId` (✨ Generated from Field `Grade`.`assignmentId` of type `UUID!`)
+  """
+  assignmentId_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'Grade'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Grade_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Grade_Filter
+}
+"""
+✨ Generated order input type for table 'Grade'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Grade_Order {
+  """
+  ✨ Generated from Field `Grade`.`enrollmentStudentId` of type `UUID!`
+  """
+  enrollmentStudentId: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`enrollmentCourseId` of type `UUID!`
+  """
+  enrollmentCourseId: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`assignmentId` of type `UUID!`
+  """
+  assignmentId: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`assignment` of type `Assignment!`
+  """
+  assignment: Assignment_Order
+  """
+  ✨ Generated from Field `Grade`.`enrollment` of type `Enrollment!`
+  """
+  enrollment: Enrollment_Order
+  """
+  ✨ Generated from Field `Grade`.`gradedDate` of type `Date!`
+  """
+  gradedDate: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`score` of type `Float!`
+  """
+  score: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`assignmentId_count` of type `Int!`
+  """
+  assignmentId_count: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`enrollmentCourseId_count` of type `Int!`
+  """
+  enrollmentCourseId_count: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`enrollmentStudentId_count` of type `Int!`
+  """
+  enrollmentStudentId_count: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`gradedDate_count` of type `Int!`
+  """
+  gradedDate_count: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`score_count` of type `Int!`
+  """
+  score_count: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`score_sum` of type `Float`
+  """
+  score_sum: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`score_avg` of type `Float`
+  """
+  score_avg: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`gradedDate_min` of type `Date`
+  """
+  gradedDate_min: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`score_min` of type `Float`
+  """
+  score_min: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`gradedDate_max` of type `Date`
+  """
+  gradedDate_max: OrderDirection
+  """
+  ✨ Generated from Field `Grade`.`score_max` of type `Float`
+  """
+  score_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'ScheduleEntry'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input ScheduleEntry_Data {
+  """
+  ✨ Generated from Field `ScheduleEntry`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `ScheduleEntry`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `ScheduleEntry`.`courseId` of type `UUID!`
+  """
+  courseId: UUID
+  """
+  ✨ `_expr` server value variant of `courseId` (✨ Generated from Field `ScheduleEntry`.`courseId` of type `UUID!`)
+  """
+  courseId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `ScheduleEntry`.`course` of type `Course!`
+  """
+  course: Course_Key
+  """
+  ✨ Generated from Field `ScheduleEntry`.`dayOfWeek` of type `String!`
+  """
+  dayOfWeek: String
+  """
+  ✨ `_expr` server value variant of `dayOfWeek` (✨ Generated from Field `ScheduleEntry`.`dayOfWeek` of type `String!`)
+  """
+  dayOfWeek_expr: String_Expr
+  """
+  ✨ Generated from Field `ScheduleEntry`.`endTime` of type `String!`
+  """
+  endTime: String
+  """
+  ✨ `_expr` server value variant of `endTime` (✨ Generated from Field `ScheduleEntry`.`endTime` of type `String!`)
+  """
+  endTime_expr: String_Expr
+  """
+  ✨ Generated from Field `ScheduleEntry`.`location` of type `String!`
+  """
+  location: String
+  """
+  ✨ `_expr` server value variant of `location` (✨ Generated from Field `ScheduleEntry`.`location` of type `String!`)
+  """
+  location_expr: String_Expr
+  """
+  ✨ Generated from Field `ScheduleEntry`.`startTime` of type `String!`
+  """
+  startTime: String
+  """
+  ✨ `_expr` server value variant of `startTime` (✨ Generated from Field `ScheduleEntry`.`startTime` of type `String!`)
+  """
+  startTime_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'ScheduleEntry'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input ScheduleEntry_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [ScheduleEntry_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: ScheduleEntry_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [ScheduleEntry_Filter!]
+  """
+  ✨ Generated from Field `ScheduleEntry`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `ScheduleEntry`.`courseId` of type `UUID!`
+  """
+  courseId: UUID_Filter
+  """
+  ✨ Generated from Field `ScheduleEntry`.`course` of type `Course!`
+  """
+  course: Course_Filter
+  """
+  ✨ Generated from Field `ScheduleEntry`.`dayOfWeek` of type `String!`
+  """
+  dayOfWeek: String_Filter
+  """
+  ✨ Generated from Field `ScheduleEntry`.`endTime` of type `String!`
+  """
+  endTime: String_Filter
+  """
+  ✨ Generated from Field `ScheduleEntry`.`location` of type `String!`
+  """
+  location: String_Filter
+  """
+  ✨ Generated from Field `ScheduleEntry`.`startTime` of type `String!`
+  """
+  startTime: String_Filter
+}
+"""
+✨ Generated first-row input type for table 'ScheduleEntry'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input ScheduleEntry_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [ScheduleEntry_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: ScheduleEntry_Filter
+}
+"""
+✨ Generated having input type for table 'ScheduleEntry'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input ScheduleEntry_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [ScheduleEntry_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: ScheduleEntry_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [ScheduleEntry_Having!]
+  """
+  ✨ Generated from Field `ScheduleEntry`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `ScheduleEntry`.`courseId_count` of type `Int!`
+  """
+  courseId_count: Int_Filter
+  """
+  ✨ Generated from Field `ScheduleEntry`.`dayOfWeek_count` of type `Int!`
+  """
+  dayOfWeek_count: Int_Filter
+  """
+  ✨ Generated from Field `ScheduleEntry`.`endTime_count` of type `Int!`
+  """
+  endTime_count: Int_Filter
+  """
+  ✨ Generated from Field `ScheduleEntry`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `ScheduleEntry`.`location_count` of type `Int!`
+  """
+  location_count: Int_Filter
+  """
+  ✨ Generated from Field `ScheduleEntry`.`startTime_count` of type `Int!`
+  """
+  startTime_count: Int_Filter
+}
+"""
+✨ Generated key input type for table 'ScheduleEntry'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input ScheduleEntry_Key {
+  """
+  ✨ Generated from Field `ScheduleEntry`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `ScheduleEntry`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'ScheduleEntry'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input ScheduleEntry_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: ScheduleEntry_Filter
+}
+"""
+✨ Generated order input type for table 'ScheduleEntry'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input ScheduleEntry_Order {
+  """
+  ✨ Generated from Field `ScheduleEntry`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `ScheduleEntry`.`courseId` of type `UUID!`
+  """
+  courseId: OrderDirection
+  """
+  ✨ Generated from Field `ScheduleEntry`.`course` of type `Course!`
+  """
+  course: Course_Order
+  """
+  ✨ Generated from Field `ScheduleEntry`.`dayOfWeek` of type `String!`
+  """
+  dayOfWeek: OrderDirection
+  """
+  ✨ Generated from Field `ScheduleEntry`.`endTime` of type `String!`
+  """
+  endTime: OrderDirection
+  """
+  ✨ Generated from Field `ScheduleEntry`.`location` of type `String!`
+  """
+  location: OrderDirection
+  """
+  ✨ Generated from Field `ScheduleEntry`.`startTime` of type `String!`
+  """
+  startTime: OrderDirection
+  """
+  ✨ Generated from Field `ScheduleEntry`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `ScheduleEntry`.`courseId_count` of type `Int!`
+  """
+  courseId_count: OrderDirection
+  """
+  ✨ Generated from Field `ScheduleEntry`.`dayOfWeek_count` of type `Int!`
+  """
+  dayOfWeek_count: OrderDirection
+  """
+  ✨ Generated from Field `ScheduleEntry`.`endTime_count` of type `Int!`
+  """
+  endTime_count: OrderDirection
+  """
+  ✨ Generated from Field `ScheduleEntry`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `ScheduleEntry`.`location_count` of type `Int!`
+  """
+  location_count: OrderDirection
+  """
+  ✨ Generated from Field `ScheduleEntry`.`startTime_count` of type `Int!`
+  """
+  startTime_count: OrderDirection
+}
+"""
+✨ Generated data input type for table 'User'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input User_Data {
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `User`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `User`.`email` of type `String`
+  """
+  email: String
+  """
+  ✨ `_expr` server value variant of `email` (✨ Generated from Field `User`.`email` of type `String`)
+  """
+  email_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`firstName` of type `String!`
+  """
+  firstName: String
+  """
+  ✨ `_expr` server value variant of `firstName` (✨ Generated from Field `User`.`firstName` of type `String!`)
+  """
+  firstName_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`lastName` of type `String!`
+  """
+  lastName: String
+  """
+  ✨ `_expr` server value variant of `lastName` (✨ Generated from Field `User`.`lastName` of type `String!`)
+  """
+  lastName_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`passwordHash` of type `String!`
+  """
+  passwordHash: String
+  """
+  ✨ `_expr` server value variant of `passwordHash` (✨ Generated from Field `User`.`passwordHash` of type `String!`)
+  """
+  passwordHash_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`role` of type `String!`
+  """
+  role: String
+  """
+  ✨ `_expr` server value variant of `role` (✨ Generated from Field `User`.`role` of type `String!`)
+  """
+  role_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`username` of type `String!`
+  """
+  username: String
+  """
+  ✨ `_expr` server value variant of `username` (✨ Generated from Field `User`.`username` of type `String!`)
+  """
+  username_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'User'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input User_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [User_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: User_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [User_Filter!]
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `User`.`email` of type `String`
+  """
+  email: String_Filter
+  """
+  ✨ Generated from Field `User`.`firstName` of type `String!`
+  """
+  firstName: String_Filter
+  """
+  ✨ Generated from Field `User`.`lastName` of type `String!`
+  """
+  lastName: String_Filter
+  """
+  ✨ Generated from Field `User`.`passwordHash` of type `String!`
+  """
+  passwordHash: String_Filter
+  """
+  ✨ Generated from Field `User`.`role` of type `String!`
+  """
+  role: String_Filter
+  """
+  ✨ Generated from Field `User`.`username` of type `String!`
+  """
+  username: String_Filter
+  """
+  ✨ Generated from Field `User`.`courses_on_teacher` of type `[Course!]!`
+  """
+  courses_on_teacher: Course_ListFilter
+  """
+  ✨ Generated from Field `User`.`enrollments_on_student` of type `[Enrollment!]!`
+  """
+  enrollments_on_student: Enrollment_ListFilter
+  """
+  ✨ Generated from Field `User`.`courses_via_Enrollment` of type `[Course!]!`
+  """
+  courses_via_Enrollment: Course_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'User'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input User_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [User_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: User_Filter
+}
+"""
+✨ Generated having input type for table 'User'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input User_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [User_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: User_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [User_Having!]
+  """
+  ✨ Generated from Field `User`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`email_count` of type `Int!`
+  """
+  email_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`firstName_count` of type `Int!`
+  """
+  firstName_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`lastName_count` of type `Int!`
+  """
+  lastName_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`passwordHash_count` of type `Int!`
+  """
+  passwordHash_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`role_count` of type `Int!`
+  """
+  role_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`username_count` of type `Int!`
+  """
+  username_count: Int_Filter
+}
+"""
+✨ Generated key input type for table 'User'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input User_Key {
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `User`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'User'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input User_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: User_Filter
+}
+"""
+✨ Generated order input type for table 'User'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input User_Order {
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `User`.`email` of type `String`
+  """
+  email: OrderDirection
+  """
+  ✨ Generated from Field `User`.`firstName` of type `String!`
+  """
+  firstName: OrderDirection
+  """
+  ✨ Generated from Field `User`.`lastName` of type `String!`
+  """
+  lastName: OrderDirection
+  """
+  ✨ Generated from Field `User`.`passwordHash` of type `String!`
+  """
+  passwordHash: OrderDirection
+  """
+  ✨ Generated from Field `User`.`role` of type `String!`
+  """
+  role: OrderDirection
+  """
+  ✨ Generated from Field `User`.`username` of type `String!`
+  """
+  username: OrderDirection
+  """
+  ✨ Generated from Field `User`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`email_count` of type `Int!`
+  """
+  email_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`firstName_count` of type `Int!`
+  """
+  firstName_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`lastName_count` of type `Int!`
+  """
+  lastName_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`passwordHash_count` of type `Int!`
+  """
+  passwordHash_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`role_count` of type `Int!`
+  """
+  role_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`username_count` of type `Int!`
+  """
+  username_count: OrderDirection
+}
