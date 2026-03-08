@@ -84,6 +84,8 @@ export default function AdminDashboard() {
   const [attendanceClassId, setAttendanceClassId] = useState("");
   const [attendanceSummary, setAttendanceSummary] = useState([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [mySchoolId, setMySchoolId] = useState(null);
+  const [inviteSchoolId, setInviteSchoolId] = useState("");
 
   // Refs for keyboard navigation
   const classNameInputRef = useRef(null);
@@ -220,11 +222,14 @@ export default function AdminDashboard() {
   const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
 
+  const schoolScopedUsers = mySchoolId ? users.filter((u) => u.schoolId === mySchoolId) : users;
+  const schoolScopedClasses = mySchoolId ? classes.filter((c) => c.schoolId === mySchoolId) : classes;
+
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const matchesQuery = (value) =>
     !normalizedQuery || String(value || "").toLowerCase().includes(normalizedQuery);
 
-  const filteredUsers = users.filter((u) =>
+  const filteredUsers = schoolScopedUsers.filter((u) =>
     matchesQuery(u.email) ||
     matchesQuery(u.role) ||
     matchesQuery(u.studentId) ||
@@ -255,7 +260,7 @@ export default function AdminDashboard() {
 
   const formatClassLabel = (c) => `${c.id} - ${c.name || "Untitled"}`;
 
-  const filteredEnrollClasses = classes.filter((c) => {
+  const filteredEnrollClasses = schoolScopedClasses.filter((c) => {
     const q = enrollClassQuery.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -264,7 +269,7 @@ export default function AdminDashboard() {
     );
   }).slice(0, 200);
 
-  const filteredEnrollStudents = users
+  const filteredEnrollStudents = schoolScopedUsers
     .filter((u) => (u.role || "").toLowerCase() === "student")
     .filter((u) => {
       const q = enrollStudentQuery.trim().toLowerCase();
@@ -278,7 +283,7 @@ export default function AdminDashboard() {
     })
     .slice(0, 200);
 
-  const filteredMultiStudents = users
+  const filteredMultiStudents = schoolScopedUsers
     .filter((u) => (u.role || "").toLowerCase() === "student")
     .filter((u) => {
       const q = multiStudentQuery.trim().toLowerCase();
@@ -293,7 +298,7 @@ export default function AdminDashboard() {
     .filter((u) => !multiSelectedStudents[u.uid])
     .slice(0, 200);
 
-  const filteredMultiTeachers = users
+  const filteredMultiTeachers = schoolScopedUsers
     .filter((u) => (u.role || "").toLowerCase() === "teacher")
     .filter((u) => {
       const q = multiEnrollTeacherQuery.trim().toLowerCase();
@@ -306,7 +311,7 @@ export default function AdminDashboard() {
     })
     .slice(0, 200);
 
-  const filteredClassTeachers = users
+  const filteredClassTeachers = schoolScopedUsers
     .filter((u) => (u.role || "").toLowerCase() === "teacher")
     .filter((u) => {
       const q = classTeacherQuery.trim().toLowerCase();
@@ -319,7 +324,7 @@ export default function AdminDashboard() {
     })
     .slice(0, 200);
 
-  const filteredMultiClasses = classes.filter((c) => {
+  const filteredMultiClasses = schoolScopedClasses.filter((c) => {
     const q = multiEnrollClassQuery.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -328,7 +333,7 @@ export default function AdminDashboard() {
     );
   }).slice(0, 200);
 
-  const filteredBulkClasses = classes.filter((c) => {
+  const filteredBulkClasses = schoolScopedClasses.filter((c) => {
     const q = bulkClassQuery.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -337,7 +342,7 @@ export default function AdminDashboard() {
     );
   }).slice(0, 200);
 
-  const filteredRosterClasses = classes.filter((c) => {
+  const filteredRosterClasses = schoolScopedClasses.filter((c) => {
     const q = rosterClassQuery.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -359,7 +364,7 @@ export default function AdminDashboard() {
     return sorted;
   };
 
-  const filteredClassList = classes.filter((c) => {
+  const filteredClassList = schoolScopedClasses.filter((c) => {
     const q = rosterClassQuery.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -759,6 +764,13 @@ export default function AdminDashboard() {
     loadAttendanceSummary();
   }, [attendanceClassId, classes]);
 
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    auth.currentUser.getIdTokenResult().then((result) => {
+      setMySchoolId(result.claims.schoolId || null);
+    });
+  }, []);
+
   const logAudit = async (action, details = {}) => {
     if (!auth.currentUser) return;
     try {
@@ -877,6 +889,7 @@ export default function AdminDashboard() {
             studentId: row.studentId || "",
             firstName: row.firstName || "",
             lastInitial: row.lastInitial || "",
+            ...(mySchoolId ? { schoolId: mySchoolId } : inviteSchoolId ? { schoolId: inviteSchoolId } : {}),
           });
           created += 1;
         } catch (err) {
@@ -909,7 +922,7 @@ export default function AdminDashboard() {
         addToast("error", "CSV has no rows");
         return;
       }
-      const usersByEmail = users.reduce((acc, u) => {
+      const usersByEmail = schoolScopedUsers.reduce((acc, u) => {
         acc[String(u.email || "").toLowerCase()] = u;
         return acc;
       }, {});
@@ -938,6 +951,7 @@ export default function AdminDashboard() {
           name,
           teacherUid: teacher.uid,
           createdAt: Date.now(),
+          ...(mySchoolId ? { schoolId: mySchoolId } : {}),
         });
         await set(ref(db, `teachers/${teacher.uid}/classes/${id}`), true);
         created += 1;
@@ -1062,6 +1076,7 @@ export default function AdminDashboard() {
       const inviteResult = await callCreateInvite({
         email: emailLower,
         role,
+        ...(mySchoolId ? { schoolId: mySchoolId } : inviteSchoolId ? { schoolId: inviteSchoolId } : {}),
       });
 
       await logAudit("invite_created", {
@@ -1120,6 +1135,7 @@ export default function AdminDashboard() {
         name: className.trim(),
         teacherUid,
         createdAt: Date.now(),
+        ...(mySchoolId ? { schoolId: mySchoolId } : {}),
       });
 
       await set(ref(db, `teachers/${teacherUid}/classes/${id}`), true);
@@ -1398,6 +1414,7 @@ export default function AdminDashboard() {
             <h2>Admin Dashboard</h2>
             <div className="muted">Manage users and invitations. Create invites, copy links, and remove users safely.</div>
           </div>
+          {mySchoolId && <span className="app-role-chip">{mySchoolId}</span>}
 
           {diagnostics && diagnostics.note && (
             <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: 'var(--accent-2, #fff7e6)' }}>
@@ -1490,7 +1507,16 @@ export default function AdminDashboard() {
                   onKeyDown={(e) => { if (e.key === "Enter" && !loading) handleAddUser(); }}
                   autoComplete="off"
                 />
-
+                {!mySchoolId && (
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="School ID (optional)"
+                    value={inviteSchoolId}
+                    onChange={(e) => setInviteSchoolId(e.target.value)}
+                    autoComplete="off"
+                  />
+                )}
                 <button className="btn btn-primary" onClick={(e) => { const btn = e.currentTarget; btn.classList.add('pulse'); setTimeout(() => btn.classList.remove('pulse'), 260); handleAddUser(); }} disabled={loading}>
                   {loading ? 'Creating...' : (<><PlusIcon className="icon"/> Create Invite</>)}
                 </button>

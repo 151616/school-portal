@@ -16,6 +16,7 @@ const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const STUDENT_ID_REGEX = /^\d{6}$/;
+const SCHOOL_ID_REGEX = /^[a-zA-Z0-9_-]{1,40}$/;
 
 const hasStudentIdCollision = (usersData, invitesData, candidate) => {
   const normalizedCandidate = String(candidate || '').trim();
@@ -132,6 +133,11 @@ exports.createInvite = functions.https.onCall(async (data, context) => {
     typeof data?.lastInitial === 'string' ? data.lastInitial.trim().charAt(0).toUpperCase() : '';
   const requestedStudentId =
     typeof data?.studentId === 'string' ? data.studentId.trim() : '';
+  const requestedSchoolId = String(data?.schoolId || '').trim();
+  const callerSchoolId = context.auth.token.schoolId || null;
+  const effectiveSchoolId =
+    callerSchoolId ||
+    (SCHOOL_ID_REGEX.test(requestedSchoolId) ? requestedSchoolId : null);
 
   if (!email || !emailRegex.test(email)) {
     throw new functions.https.HttpsError('invalid-argument', 'Invalid email format');
@@ -184,6 +190,7 @@ exports.createInvite = functions.https.onCall(async (data, context) => {
     createdBy: context.auth.uid,
     firstName,
     lastInitial,
+    schoolId: effectiveSchoolId || '',
   });
 
   return {
@@ -344,6 +351,7 @@ exports.assignRoleFromInvite = functions.https.onCall(async (data, context) => {
   const persistedInvite = persistedSnap.val() || {};
   const role = persistedInvite.role;
   const studentId = persistedInvite.studentId || '';
+  const schoolId = persistedInvite.schoolId || null;
   const createdAt = persistedInvite.usedAt || claimTimestamp;
   const safeFirstName = typeof firstName === 'string' ? firstName.trim() : '';
   const safeLastInitial =
@@ -362,6 +370,7 @@ exports.assignRoleFromInvite = functions.https.onCall(async (data, context) => {
 
   await admin.auth().setCustomUserClaims(uid, {
     [role]: true,
+    ...(schoolId ? { schoolId } : {}),
   });
 
   await admin.database().ref(`Users/${uid}`).set({
@@ -371,6 +380,7 @@ exports.assignRoleFromInvite = functions.https.onCall(async (data, context) => {
     lastInitial: safeLastInitial,
     studentId,
     createdAt,
+    ...(schoolId ? { schoolId } : {}),
   });
 
   try {
@@ -406,6 +416,16 @@ exports.deleteUserByAdmin = functions.https.onCall(async (data, context) => {
   }
 
   const db = admin.database();
+
+  // Prevent school-scoped admins from deleting users outside their school
+  const callerSchoolId = context.auth.token.schoolId || null;
+  if (callerSchoolId) {
+    const targetSnap = await db.ref(`Users/${uid}`).once('value');
+    const targetSchoolId = targetSnap.val()?.schoolId || null;
+    if (targetSchoolId !== callerSchoolId) {
+      throw new functions.https.HttpsError('permission-denied', 'Cannot delete users from another school');
+    }
+  }
 
   try {
     await admin.auth().deleteUser(uid);
