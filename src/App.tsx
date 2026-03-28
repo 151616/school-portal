@@ -1,30 +1,32 @@
-import React, { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Outlet, Route, Routes, useOutletContext } from "react-router-dom";
 import { onAuthStateChanged, sendEmailVerification, signOut } from "firebase/auth";
+import type { User as FirebaseUser } from "firebase/auth";
 import { onValue, ref } from "firebase/database";
 import { auth, db } from "./firebase";
+import type { UserRole } from "./types";
 
 import AppHeader from "./AppHeader";
 import Toasts from "./Toasts";
 import { LogoutIcon } from "./icons";
 import { addToast } from "./toastService";
 
-const Login = lazy(() => import("./Login.jsx"));
-const Signup = lazy(() => import("./Signup.jsx"));
-const TeacherDashboard = lazy(() => import("./TeacherDashboard.jsx"));
-const StudentDashboard = lazy(() => import("./StudentDashboard.jsx"));
-const AdminDashboard = lazy(() => import("./AdminDashboard.jsx"));
-const Settings = lazy(() => import("./Settings.jsx"));
-const PrivacyPolicy = lazy(() => import("./PrivacyPolicy.jsx"));
-const ParentSignup = lazy(() => import("./ParentSignup.jsx"));
-const ParentDashboard = lazy(() => import("./ParentDashboard.jsx"));
+const Login = lazy(() => import("./Login"));
+const Signup = lazy(() => import("./Signup"));
+const TeacherDashboard = lazy(() => import("./TeacherDashboard"));
+const StudentDashboard = lazy(() => import("./StudentDashboard"));
+const AdminDashboard = lazy(() => import("./AdminDashboard"));
+const Settings = lazy(() => import("./Settings"));
+const PrivacyPolicy = lazy(() => import("./PrivacyPolicy"));
+const ParentSignup = lazy(() => import("./ParentSignup"));
+const ParentDashboard = lazy(() => import("./ParentDashboard"));
 
 function RouteFallback() {
   return <div className="app-container">Loading...</div>;
 }
 
 function RoleDashboardRoute() {
-  const { user, role } = useOutletContext();
+  const { user, role } = useOutletContext<{ user: FirebaseUser; role: UserRole }>();
 
   if (role === "teacher") return <TeacherDashboard user={user} />;
   if (role === "student") return <StudentDashboard user={user} />;
@@ -35,15 +37,15 @@ function RoleDashboardRoute() {
 }
 
 function AuthenticatedLayout() {
-  const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [emailVerified, setEmailVerified] = useState(true);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [role, setRole] = useState<UserRole | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [emailVerified, setEmailVerified] = useState<boolean>(true);
 
   useEffect(() => {
-    let unsubscribeDB = null;
+    let unsubscribeDB: (() => void) | null = null;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser: FirebaseUser | null) => {
       if (unsubscribeDB) {
         unsubscribeDB();
         unsubscribeDB = null;
@@ -68,7 +70,7 @@ function AuthenticatedLayout() {
             setRole(null);
           } else {
             const data = snapshot.val();
-            setRole(data.role || null);
+            setRole((data.role as UserRole) || null);
           }
           setLoading(false);
         },
@@ -85,7 +87,7 @@ function AuthenticatedLayout() {
     };
   }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = async (): Promise<void> => {
     try {
       await signOut(auth);
       setUser(null);
@@ -97,7 +99,7 @@ function AuthenticatedLayout() {
     }
   };
 
-  const resendVerification = async () => {
+  const resendVerification = async (): Promise<void> => {
     if (!auth.currentUser) return;
     try {
       await sendEmailVerification(auth.currentUser);
@@ -108,7 +110,7 @@ function AuthenticatedLayout() {
     }
   };
 
-  const refreshVerification = async () => {
+  const refreshVerification = async (): Promise<void> => {
     if (!auth.currentUser) return;
 
     try {
@@ -131,9 +133,7 @@ function AuthenticatedLayout() {
   if (loading) {
     return (
       <div className="app-container">
-        <div className="card">
-          Loading your workspace...
-        </div>
+        <div className="card">Loading your workspace...</div>
       </div>
     );
   }
@@ -146,7 +146,7 @@ function AuthenticatedLayout() {
           <p>Contact an administrator.</p>
           <button
             className="btn btn-ghost"
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
               const button = e.currentTarget;
               button.classList.add("pulse");
               setTimeout(() => button.classList.remove("pulse"), 260);
@@ -194,7 +194,7 @@ function AuthenticatedLayout() {
 export default function App() {
   useEffect(() => {
     const saved = localStorage.getItem("theme") || "system";
-    const apply = (value) => {
+    const apply = (value: string): void => {
       if (value === "system") {
         const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
@@ -206,7 +206,7 @@ export default function App() {
     apply(saved);
 
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = () => {
+    const handleChange = (): void => {
       const current = localStorage.getItem("theme") || "system";
       if (current === "system") apply("system");
     };

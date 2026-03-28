@@ -1,15 +1,21 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { onValue, ref } from "firebase/database";
 import { db } from "./firebase";
 import { addToast } from "./toastService";
+import type { User as FirebaseUser } from "firebase/auth";
+import type { User, Assignment } from "./types";
 
-export default function StudentDashboard({ user }) {
-  const [profile, setProfile] = useState(null);
-  const [grades, setGrades] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [openClassId, setOpenClassId] = useState("");
-  const [openRubrics, setOpenRubrics] = useState({});
-  const [parentCode, setParentCode] = useState(null);
+interface Props {
+  user: FirebaseUser;
+}
+
+export default function StudentDashboard({ user }: Props) {
+  const [profile, setProfile] = useState<User | null>(null);
+  const [grades, setGrades] = useState<Record<string, { assignments?: Record<string, Assignment> }> | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [openClassId, setOpenClassId] = useState<string>("");
+  const [openRubrics, setOpenRubrics] = useState<Record<string, boolean>>({});
+  const [parentCode, setParentCode] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -20,7 +26,7 @@ export default function StudentDashboard({ user }) {
     const unsubscribeUser = onValue(
       userRef,
       (snapshot) => {
-        const data = snapshot.exists() ? snapshot.val() : null;
+        const data: User | null = snapshot.exists() ? snapshot.val() : null;
         setProfile(data);
         setParentCode(data?.parentCode || null);
       },
@@ -49,7 +55,7 @@ export default function StudentDashboard({ user }) {
     };
   }, [user]);
 
-  const renderName = () => {
+  const renderName = (): string => {
     if (!profile) return "Student";
     const first = profile.firstName || "";
     const lastInitial = profile.lastInitial ? `${profile.lastInitial}.` : "";
@@ -57,7 +63,7 @@ export default function StudentDashboard({ user }) {
     return name || "Student";
   };
 
-  const getLetter = (pct) => {
+  const getLetter = (pct: number | null): string | null => {
     if (pct === null) return null;
     if (pct >= 90) return "A";
     if (pct >= 80) return "B";
@@ -72,7 +78,7 @@ export default function StudentDashboard({ user }) {
     }
 
     return Object.entries(grades).map(([classId, classData]) => {
-      const assignments = classData?.assignments
+      const assignments: Assignment[] = classData?.assignments
         ? Object.values(classData.assignments)
         : [];
       const total = assignments.reduce((sum, a) => sum + Number(a.score || 0), 0);
@@ -145,11 +151,11 @@ export default function StudentDashboard({ user }) {
   };
 
   const progressSummary = (() => {
-    if (!grades) return { overallAvg: null, totalAssignments: 0, recent: [] };
+    if (!grades) return { overallAvg: null as number | null, totalAssignments: 0, recent: [] as Array<{ id: string; classId: string; name: string; score: number; maxScore: number; updatedAt: number }> };
 
     let total = 0;
     let max = 0;
-    const recent = [];
+    const recent: Array<{ id: string; classId: string; name: string; score: number; maxScore: number; updatedAt: number }> = [];
 
     Object.entries(grades).forEach(([classId, classData]) => {
       const assignments = classData?.assignments

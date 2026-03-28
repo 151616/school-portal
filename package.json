@@ -9,6 +9,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
     "set-admin-claim": "node scripts/setAdminClaim.cjs",
     "cleanup-emails": "node scripts/cleanup_emails.js"
   },

@@ -1,21 +1,37 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { get, onValue, ref } from "firebase/database";
 import { db } from "./firebase";
-import { addToast } from "./toastService";
+import { addToast as _addToast } from "./toastService";
 import AddChildModal from "./AddChildModal";
+import type { User as FirebaseUser } from "firebase/auth";
+import type { User, Assignment, SchoolClass, AttendanceStatus, SchoolSettings } from "./types";
 
-export default function ParentDashboard({ user }) {
-  const [children, setChildren] = useState([]);
-  const [activeChildUid, setActiveChildUid] = useState(null);
-  const [childProfiles, setChildProfiles] = useState({});
-  const [grades, setGrades] = useState({});
-  const [classes, setClasses] = useState({});
-  const [attendance, setAttendance] = useState({});
-  const [schoolSettings, setSchoolSettings] = useState(null);
-  const [tab, setTab] = useState("grades");
-  const [loading, setLoading] = useState(true);
-  const [expandedClasses, setExpandedClasses] = useState({});
-  const [showAddChild, setShowAddChild] = useState(false);
+interface Props {
+  user: FirebaseUser;
+}
+
+interface ClassGradeData {
+  assignments: Array<Assignment & { id: string }>;
+  caAssignments: Array<Assignment & { id: string }>;
+  examAssignments: Array<Assignment & { id: string }>;
+  untypedAssignments: Array<Assignment & { id: string }>;
+  weightedAvg: number | null;
+  simpleAvg: number | null;
+  average: number | null;
+}
+
+export default function ParentDashboard({ user }: Props) {
+  const [children, setChildren] = useState<string[]>([]);
+  const [activeChildUid, setActiveChildUid] = useState<string | null>(null);
+  const [childProfiles, setChildProfiles] = useState<Record<string, User>>({});
+  const [grades, setGrades] = useState<Record<string, { assignments?: Record<string, Assignment> }>>({});
+  const [classes, setClasses] = useState<Record<string, SchoolClass>>({});
+  const [attendance, setAttendance] = useState<Record<string, Record<string, AttendanceStatus>>>({});
+  const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
+  const [tab, setTab] = useState<string>("grades");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [expandedClasses, setExpandedClasses] = useState<Record<string, boolean>>({});
+  const [showAddChild, setShowAddChild] = useState<boolean>(false);
 
   // Load linked children
   useEffect(() => {
@@ -23,10 +39,10 @@ export default function ParentDashboard({ user }) {
     const parentsRef = ref(db, `parents/${user.uid}/children`);
     const unsub = onValue(parentsRef, (snap) => {
       const data = snap.val() || {};
-      const childUids = Object.keys(data);
+      const childUids: string[] = Object.keys(data);
       setChildren(childUids);
       if (childUids.length > 0 && !activeChildUid) {
-        setActiveChildUid(childUids[0]);
+        setActiveChildUid(childUids[0] ?? null);
       }
       if (childUids.length === 0) {
         setLoading(false);
@@ -38,10 +54,10 @@ export default function ParentDashboard({ user }) {
   // Load child profiles
   useEffect(() => {
     if (children.length === 0) return;
-    const profiles = {};
+    const profiles: Record<string, User> = {};
     const promises = children.map(async (uid) => {
       const snap = await get(ref(db, `Users/${uid}`));
-      if (snap.exists()) profiles[uid] = snap.val();
+      if (snap.exists()) profiles[uid] = snap.val() as User;
     });
     Promise.all(promises).then(() => setChildProfiles(profiles));
   }, [children]);
@@ -52,7 +68,7 @@ export default function ParentDashboard({ user }) {
     const settingsRef = ref(db, "schoolSettings/default");
     const unsub = onValue(settingsRef, (snap) => {
       if (snap.exists()) {
-        setSchoolSettings(snap.val());
+        setSchoolSettings(snap.val() as SchoolSettings);
       } else {
         setSchoolSettings({ caWeight: 40, examWeight: 60 });
       }
@@ -77,22 +93,23 @@ export default function ParentDashboard({ user }) {
     if (!activeChildUid) return;
     const unsub = onValue(ref(db, "classes"), async (snap) => {
       const all = snap.val() || {};
-      const enrolled = {};
+      const enrolled: Record<string, SchoolClass> = {};
       Object.entries(all).forEach(([classId, classData]) => {
-        if (classData?.students?.[activeChildUid]) {
-          enrolled[classId] = classData;
+        const cls = classData as SchoolClass & { students?: Record<string, unknown> };
+        if (cls?.students?.[activeChildUid]) {
+          enrolled[classId] = cls;
         }
       });
       setClasses(enrolled);
-    }, (err) => {
+    }, (_err) => {
       // If bulk read fails, try reading each class from grades
       const classIds = Object.keys(grades);
-      const enrolled = {};
+      const enrolled: Record<string, SchoolClass> = {};
       Promise.all(
         classIds.map(async (classId) => {
           try {
             const snap = await get(ref(db, `classes/${classId}`));
-            if (snap.exists()) enrolled[classId] = snap.val();
+            if (snap.exists()) enrolled[classId] = snap.val() as SchoolClass;
           } catch (e) {
             console.debug("Cannot read class", classId);
           }
@@ -106,14 +123,14 @@ export default function ParentDashboard({ user }) {
   useEffect(() => {
     if (!activeChildUid || Object.keys(classes).length === 0) return;
     const today = new Date();
-    const dates = [];
+    const dates: string[] = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      dates.push(d.toISOString().split("T")[0]);
+      dates.push(d.toISOString().split("T")[0]!);
     }
 
-    const attendanceData = {};
+    const attendanceData: Record<string, Record<string, AttendanceStatus>> = {};
     const promises = Object.keys(classes).flatMap((classId) =>
       dates.map(async (date) => {
         try {
@@ -122,7 +139,7 @@ export default function ParentDashboard({ user }) {
           );
           if (snap.exists()) {
             if (!attendanceData[classId]) attendanceData[classId] = {};
-            attendanceData[classId][date] = snap.val();
+            attendanceData[classId][date] = snap.val() as AttendanceStatus;
           }
         } catch (e) {
           // Parent may not have read access to full attendance node
@@ -133,13 +150,13 @@ export default function ParentDashboard({ user }) {
     Promise.all(promises).then(() => setAttendance(attendanceData));
   }, [activeChildUid, classes]);
 
-  const activeChild = childProfiles[activeChildUid] || null;
+  const activeChild: User | null = childProfiles[activeChildUid ?? ""] || null;
 
-  const classGrades = useMemo(() => {
-    const result = {};
+  const classGrades = useMemo((): Record<string, ClassGradeData> => {
+    const result: Record<string, ClassGradeData> = {};
     Object.entries(grades).forEach(([classId, classData]) => {
       const assignments = classData?.assignments || {};
-      const list = Object.entries(assignments).map(([id, a]) => ({
+      const list: Array<Assignment & { id: string }> = Object.entries(assignments).map(([id, a]) => ({
         id,
         ...a,
       }));
@@ -149,7 +166,7 @@ export default function ParentDashboard({ user }) {
       const examAssignments = list.filter((a) => a.type === "exam");
       const untyped = list.filter((a) => !a.type);
 
-      let weightedAvg = null;
+      let weightedAvg: number | null = null;
       if (
         schoolSettings &&
         (caAssignments.length > 0 || examAssignments.length > 0)
@@ -196,7 +213,7 @@ export default function ParentDashboard({ user }) {
     return result;
   }, [grades, schoolSettings]);
 
-  const letterGrade = (pct) => {
+  const letterGrade = (pct: number | null | undefined): string => {
     if (pct === null || pct === undefined) return "—";
     if (pct >= 90) return "A";
     if (pct >= 80) return "B";
@@ -205,15 +222,15 @@ export default function ParentDashboard({ user }) {
     return "F";
   };
 
-  const overallAverage = useMemo(() => {
+  const overallAverage = useMemo((): number | null => {
     const avgs = Object.values(classGrades)
       .map((c) => c.average)
-      .filter((a) => a !== null);
+      .filter((a): a is number => a !== null);
     if (avgs.length === 0) return null;
     return avgs.reduce((s, a) => s + a, 0) / avgs.length;
   }, [classGrades]);
 
-  const toggleClass = (classId) => {
+  const toggleClass = (classId: string): void => {
     setExpandedClasses((prev) => ({ ...prev, [classId]: !prev[classId] }));
   };
 
@@ -471,10 +488,10 @@ export default function ParentDashboard({ user }) {
           {Object.entries(classes).map(([classId, cls]) => {
             const classAttendance = attendance[classId] || {};
             const dates = Object.keys(classAttendance).sort().reverse();
-            const counts = { present: 0, tardy: 0, absent: 0, excused: 0 };
+            const counts: Record<AttendanceStatus, number> = { present: 0, tardy: 0, absent: 0, excused: 0 };
             dates.forEach((d) => {
               const status = classAttendance[d];
-              if (counts[status] !== undefined) counts[status]++;
+              if (status && counts[status] !== undefined) counts[status]++;
             });
 
             return (
@@ -505,7 +522,7 @@ export default function ParentDashboard({ user }) {
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                       {dates.map((date) => {
                         const status = classAttendance[date];
-                        const colors = {
+                        const colors: Record<string, string> = {
                           present: "var(--accent)",
                           tardy: "#e67e22",
                           absent: "var(--error, #c0392b)",
@@ -518,7 +535,7 @@ export default function ParentDashboard({ user }) {
                             style={{
                               padding: "2px 6px",
                               borderRadius: 4,
-                              background: colors[status] || "var(--border)",
+                              background: (status ? colors[status] : undefined) || "var(--border)",
                               color: "#fff",
                               fontSize: "0.75rem",
                             }}

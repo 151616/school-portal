@@ -14,11 +14,7 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "allowJs": true,
-    "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@/types/*": ["src/types/*"]
-    }
+    "outDir": "./dist"
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist", "functions"]

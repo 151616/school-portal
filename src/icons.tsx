@@ -1,5 +1,9 @@
+import React from "react";
+
 interface IconProps {
   className?: string;
+  style?: React.CSSProperties;
+  "aria-hidden"?: boolean;
 }
 
 export const CopyIcon = ({ className = '' }: IconProps) => (

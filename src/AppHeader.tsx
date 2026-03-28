@@ -1,18 +1,26 @@
-import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-const logo = "/logo.png";
+import type { User as FirebaseUser } from "firebase/auth";
+import type { UserRole } from "./types";
 import MessagingPanel from "./MessagingPanel";
 import NotificationsMenu from "./NotificationsMenu";
 import { LogoutIcon, SettingsIcon } from "./icons";
 
-const roleLabels = {
+const logo = "/logo.png";
+
+interface AppHeaderProps {
+  currentUser: FirebaseUser;
+  currentRole: UserRole;
+  onLogout: () => void;
+}
+
+const roleLabels: Record<string, string> = {
   student: "Student Portal",
   teacher: "Teacher Workspace",
   admin: "Admin Console",
   parent: "Parent Portal",
 };
 
-export default function AppHeader({ currentUser, currentRole, onLogout }) {
+export default function AppHeader({ currentUser, currentRole, onLogout }: AppHeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const isSettings = location.pathname === "/settings";

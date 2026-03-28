@@ -1,10 +1,42 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ref, get, onValue, set, push } from "firebase/database";
 import { db } from "./firebase";
 import { addToast } from "./toastService";
 import { PlusIcon, CheckIcon } from "./icons";
+import type { User as FirebaseUser } from "firebase/auth";
+import type { SchoolClass, ClassStudent, Assignment, AttendanceStatus, TeacherTemplate } from "./types";
 
-const slugify = (value) =>
+interface Props {
+  user: FirebaseUser;
+}
+
+interface ClassWithId extends SchoolClass {
+  id: string;
+}
+
+interface TemplateWithId extends TeacherTemplate {
+  id: string;
+}
+
+interface StudentHistoryEntry {
+  name: string;
+  score: number;
+  maxScore: number;
+  updatedAt: number | null;
+}
+
+interface AttendanceSummaryRow {
+  uid: string;
+  name: string;
+  email?: string;
+  studentId?: string;
+  present?: number;
+  tardy?: number;
+  absent?: number;
+  excused?: number;
+}
+
+const slugify = (value: string): string =>
   value
     .toLowerCase()
     .trim()
@@ -12,7 +44,7 @@ const slugify = (value) =>
     .replace(/(^-|-$)/g, "")
     .slice(0, 40);
 
-const toISODate = (date) => {
+const toISODate = (date: Date): string => {
   const d = new Date(date);
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -20,8 +52,8 @@ const toISODate = (date) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-const getRecentDates = (days = 7) => {
-  const list = [];
+const getRecentDates = (days = 7): string[] => {
+  const list: string[] = [];
   const today = new Date();
   for (let i = 0; i < days; i += 1) {
     const d = new Date(today);
@@ -31,28 +63,28 @@ const getRecentDates = (days = 7) => {
   return list;
 };
 
-export default function TeacherDashboard({ user }) {
-  const [classes, setClasses] = useState([]);
-  const [selectedClassId, setSelectedClassId] = useState("");
-  const [assignmentName, setAssignmentName] = useState("");
-  const [assignmentType, setAssignmentType] = useState("");
-  const [maxScore, setMaxScore] = useState("");
-  const [assignmentRubric, setAssignmentRubric] = useState("");
-  const [scores, setScores] = useState({});
-  const [rosterSearch, setRosterSearch] = useState("");
-  const [scoreFilter, setScoreFilter] = useState("all");
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [studentHistory, setStudentHistory] = useState([]);
-  const [studentAverage, setStudentAverage] = useState(null);
-  const [templates, setTemplates] = useState([]);
-  const [templateName, setTemplateName] = useState("");
-  const [templateMaxScore, setTemplateMaxScore] = useState("");
-  const [templateRubric, setTemplateRubric] = useState("");
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  const [attendanceDate, setAttendanceDate] = useState(toISODate(new Date()));
-  const [attendance, setAttendance] = useState({});
-  const [attendanceSummary, setAttendanceSummary] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function TeacherDashboard({ user }: Props) {
+  const [classes, setClasses] = useState<ClassWithId[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const [assignmentName, setAssignmentName] = useState<string>("");
+  const [assignmentType, setAssignmentType] = useState<"" | "ca" | "exam">("");
+  const [maxScore, setMaxScore] = useState<string>("");
+  const [assignmentRubric, setAssignmentRubric] = useState<string>("");
+  const [scores, setScores] = useState<Record<string, string>>({});
+  const [rosterSearch, setRosterSearch] = useState<string>("");
+  const [scoreFilter, setScoreFilter] = useState<string>("all");
+  const [selectedStudent, setSelectedStudent] = useState<ClassStudent | null>(null);
+  const [studentHistory, setStudentHistory] = useState<StudentHistoryEntry[]>([]);
+  const [studentAverage, setStudentAverage] = useState<number | null>(null);
+  const [templates, setTemplates] = useState<TemplateWithId[]>([]);
+  const [templateName, setTemplateName] = useState<string>("");
+  const [templateMaxScore, setTemplateMaxScore] = useState<string>("");
+  const [templateRubric, setTemplateRubric] = useState<string>("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [attendanceDate, setAttendanceDate] = useState<string>(toISODate(new Date()));
+  const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
+  const [attendanceSummary, setAttendanceSummary] = useState<AttendanceSummaryRow[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     if (!user) return;
@@ -63,7 +95,7 @@ export default function TeacherDashboard({ user }) {
       teacherClassesRef,
       async (snapshot) => {
         try {
-          const classIds = snapshot.exists() ? Object.keys(snapshot.val()) : [];
+          const classIds: string[] = snapshot.exists() ? Object.keys(snapshot.val()) : [];
           if (classIds.length === 0) {
             setClasses([]);
             setLoading(false);
@@ -73,10 +105,10 @@ export default function TeacherDashboard({ user }) {
           const classData = await Promise.all(
             classIds.map(async (id) => {
               const cSnap = await get(ref(db, `classes/${id}`));
-              return cSnap.exists() ? { id, ...cSnap.val() } : null;
+              return cSnap.exists() ? ({ id, ...cSnap.val() } as ClassWithId) : null;
             })
           );
-          setClasses(classData.filter(Boolean));
+          setClasses(classData.filter((c): c is ClassWithId => c !== null));
         } catch (err) {
           console.error("Error loading classes:", err);
           addToast("error", "Unable to load classes");
@@ -99,7 +131,7 @@ export default function TeacherDashboard({ user }) {
     const templatesRef = ref(db, `teacherTemplates/${user.uid}`);
     const unsubscribe = onValue(templatesRef, (snapshot) => {
       const data = snapshot.exists() ? snapshot.val() : {};
-      const list = Object.entries(data).map(([id, t]) => ({ id, ...t }));
+      const list: TemplateWithId[] = Object.entries(data).map(([id, t]) => ({ id, ...(t as TeacherTemplate) }));
       setTemplates(list);
     });
     return () => unsubscribe();
@@ -110,7 +142,7 @@ export default function TeacherDashboard({ user }) {
     [classes, selectedClassId]
   );
 
-  const roster = useMemo(() => {
+  const roster = useMemo((): ClassStudent[] => {
     if (!selectedClass || !selectedClass.students) return [];
     return Object.values(selectedClass.students);
   }, [selectedClass]);
@@ -124,7 +156,7 @@ export default function TeacherDashboard({ user }) {
     const unsubscribe = onValue(
       attendanceRef,
       (snapshot) => {
-        setAttendance(snapshot.exists() ? snapshot.val() : {});
+        setAttendance(snapshot.exists() ? (snapshot.val() as Record<string, AttendanceStatus>) : {});
       },
       (error) => {
         console.error("Attendance read error:", error);
@@ -143,10 +175,10 @@ export default function TeacherDashboard({ user }) {
       const snap = await get(ref(db, `attendance/${selectedClassId}`));
       const data = snap.exists() ? snap.val() : {};
       const dates = new Set(getRecentDates(7));
-      const summaryMap = {};
+      const summaryMap: Record<string, { present: number; tardy: number; absent: number; excused: number }> = {};
       Object.entries(data).forEach(([date, dayData]) => {
         if (!dates.has(date)) return;
-        Object.entries(dayData || {}).forEach(([uid, status]) => {
+        Object.entries(dayData as Record<string, AttendanceStatus>).forEach(([uid, status]) => {
           if (!summaryMap[uid]) {
             summaryMap[uid] = { present: 0, tardy: 0, absent: 0, excused: 0 };
           }
@@ -155,7 +187,7 @@ export default function TeacherDashboard({ user }) {
           }
         });
       });
-      const list = roster.map((s) => ({
+      const list: AttendanceSummaryRow[] = roster.map((s) => ({
         uid: s.uid,
         name: `${s.firstName || "Student"} ${s.lastInitial ? `${s.lastInitial}.` : ""}`.trim(),
         email: s.email,
@@ -167,7 +199,7 @@ export default function TeacherDashboard({ user }) {
     loadSummary();
   }, [selectedClassId, roster]);
 
-  const filteredRoster = useMemo(() => {
+  const filteredRoster = useMemo((): ClassStudent[] => {
     const q = rosterSearch.trim().toLowerCase();
     return roster.filter((s) => {
       const matchesQuery =
@@ -186,11 +218,11 @@ export default function TeacherDashboard({ user }) {
     });
   }, [roster, rosterSearch, scoreFilter, scores]);
 
-  const handleScoreChange = (uid, value) => {
+  const handleScoreChange = (uid: string, value: string): void => {
     setScores((prev) => ({ ...prev, [uid]: value }));
   };
 
-  const handleSubmitAssignment = async () => {
+  const handleSubmitAssignment = async (): Promise<void> => {
     if (!selectedClassId) {
       addToast("error", "Select a class");
       return;
@@ -219,19 +251,24 @@ export default function TeacherDashboard({ user }) {
         }))
         .filter((entry) => !Number.isNaN(entry.scoreValue));
 
+      const gradePayload: Omit<Assignment, "type"> & { type?: "ca" | "exam" } = {
+        name: assignmentName.trim(),
+        score: 0, // placeholder — overridden per student below
+        maxScore: Number(maxScore),
+        rubric: assignmentRubric.trim() || "",
+        teacherUid: user.uid,
+        updatedAt: Date.now(),
+        ...(assignmentType ? { type: assignmentType } : {}),
+      };
+
       const writes = scoredStudents.map(({ student, scoreValue }) => {
         const assignmentRef = ref(
           db,
           `grades/${student.uid}/${selectedClassId}/assignments/${assignmentId}`
         );
         return set(assignmentRef, {
-          name: assignmentName.trim(),
+          ...gradePayload,
           score: scoreValue,
-          maxScore: Number(maxScore),
-          rubric: assignmentRubric.trim() || "",
-          teacherUid: user.uid,
-          updatedAt: Date.now(),
-          ...(assignmentType ? { type: assignmentType } : {}),
         });
       });
 
@@ -258,7 +295,7 @@ export default function TeacherDashboard({ user }) {
             ref(db, `grades/${student.uid}/${selectedClassId}/assignments`)
           );
           if (assignmentsSnap.exists()) {
-            const assignments = Object.values(assignmentsSnap.val() || {});
+            const assignments: Assignment[] = Object.values(assignmentsSnap.val() || {});
             const total = assignments.reduce((sum, a) => sum + Number(a.score || 0), 0);
             const max = assignments.reduce((sum, a) => sum + Number(a.maxScore || 0), 0);
             const avg = max > 0 ? Math.round((total / max) * 100) : null;
@@ -279,11 +316,11 @@ export default function TeacherDashboard({ user }) {
       addToast("success", "Grades saved");
     } catch (err) {
       console.error("Error saving grades:", err);
-      addToast("error", "Error saving grades: " + (err.message || err));
+      addToast("error", "Error saving grades: " + ((err as Error).message || err));
     }
   };
 
-  const handleSaveTemplate = async () => {
+  const handleSaveTemplate = async (): Promise<void> => {
     if (!templateName.trim()) {
       addToast("error", "Enter a template name");
       return;
@@ -306,11 +343,11 @@ export default function TeacherDashboard({ user }) {
       addToast("success", "Template saved");
     } catch (err) {
       console.error("Error saving template:", err);
-      addToast("error", "Error saving template: " + (err.message || err));
+      addToast("error", "Error saving template: " + ((err as Error).message || err));
     }
   };
 
-  const applyTemplate = () => {
+  const applyTemplate = (): void => {
     if (!selectedTemplateId) return;
     const tmpl = templates.find((t) => t.id === selectedTemplateId);
     if (!tmpl) return;
@@ -321,7 +358,7 @@ export default function TeacherDashboard({ user }) {
     addToast("success", "Template applied");
   };
 
-  const handleSaveAttendance = async () => {
+  const handleSaveAttendance = async (): Promise<void> => {
     if (!selectedClassId) {
       addToast("error", "Select a class");
       return;
@@ -331,23 +368,26 @@ export default function TeacherDashboard({ user }) {
       addToast("success", "Attendance saved");
     } catch (err) {
       console.error("Error saving attendance:", err);
-      addToast("error", "Error saving attendance: " + (err.message || err));
+      addToast("error", "Error saving attendance: " + ((err as Error).message || err));
     }
   };
 
-  const loadStudentHistory = async (student) => {
+  const loadStudentHistory = async (student: ClassStudent): Promise<void> => {
     if (!student || !selectedClassId) return;
     try {
       const historySnap = await get(
         ref(db, `grades/${student.uid}/${selectedClassId}/assignments`)
       );
       const data = historySnap.exists() ? historySnap.val() : {};
-      const entries = Object.values(data || {}).map((a) => ({
-        name: a.name,
-        score: Number(a.score || 0),
-        maxScore: Number(a.maxScore || 0),
-        updatedAt: a.updatedAt || null,
-      }));
+      const entries: StudentHistoryEntry[] = Object.values(data || {}).map((a) => {
+        const assignment = a as Assignment;
+        return {
+          name: assignment.name,
+          score: Number(assignment.score || 0),
+          maxScore: Number(assignment.maxScore || 0),
+          updatedAt: assignment.updatedAt || null,
+        };
+      });
       const total = entries.reduce((sum, a) => sum + a.score, 0);
       const max = entries.reduce((sum, a) => sum + a.maxScore, 0);
       const avg = max > 0 ? Math.round((total / max) * 100) : null;
@@ -388,7 +428,7 @@ export default function TeacherDashboard({ user }) {
             <select
               className="select"
               value={selectedClassId}
-              onChange={(e) => {
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                 setSelectedClassId(e.target.value);
                 setScores({});
                 setAssignmentType("");
@@ -417,12 +457,12 @@ export default function TeacherDashboard({ user }) {
                 className="input"
                 placeholder="Assignment name"
                 value={assignmentName}
-                onChange={(e) => setAssignmentName(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAssignmentName(e.target.value)}
               />
               <select
                 className="input"
                 value={assignmentType}
-                onChange={(e) => setAssignmentType(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAssignmentType(e.target.value as "" | "ca" | "exam")}
                 style={{ maxWidth: 200 }}
               >
                 <option value="">Type (optional)</option>
@@ -434,7 +474,7 @@ export default function TeacherDashboard({ user }) {
                 placeholder="Max score"
                 type="number"
                 value={maxScore}
-                onChange={(e) => setMaxScore(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMaxScore(e.target.value)}
               />
               <button className="btn btn-primary" onClick={handleSubmitAssignment}>
                 <CheckIcon className="icon" /> Save Grades
@@ -445,7 +485,7 @@ export default function TeacherDashboard({ user }) {
               <select
                 className="select"
                 value={selectedTemplateId}
-                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedTemplateId(e.target.value)}
               >
                 <option value="">Apply template...</option>
                 {templates.map((t) => (
@@ -466,7 +506,7 @@ export default function TeacherDashboard({ user }) {
                 style={{ minHeight: 80 }}
                 placeholder="Ex: 4 pts - Correct steps, 3 pts - Minor errors, 2 pts - Incomplete..."
                 value={assignmentRubric}
-                onChange={(e) => setAssignmentRubric(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAssignmentRubric(e.target.value)}
               />
             </div>
 
@@ -475,12 +515,12 @@ export default function TeacherDashboard({ user }) {
                 className="input"
                 placeholder="Search students (name, email, ID)"
                 value={rosterSearch}
-                onChange={(e) => setRosterSearch(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRosterSearch(e.target.value)}
               />
               <select
                 className="select"
                 value={scoreFilter}
-                onChange={(e) => setScoreFilter(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setScoreFilter(e.target.value)}
               >
                 <option value="all">All students</option>
                 <option value="missing">Missing scores</option>
@@ -514,7 +554,7 @@ export default function TeacherDashboard({ user }) {
                         type="number"
                         placeholder="Score"
                         value={scores[s.uid] ?? ""}
-                        onChange={(e) => handleScoreChange(s.uid, e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleScoreChange(s.uid, e.target.value)}
                       />
                     </div>
                   ))}
@@ -554,14 +594,14 @@ export default function TeacherDashboard({ user }) {
               className="input"
               placeholder="Template name"
               value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTemplateName(e.target.value)}
             />
             <input
               className="input"
               placeholder="Max score"
               type="number"
               value={templateMaxScore}
-              onChange={(e) => setTemplateMaxScore(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTemplateMaxScore(e.target.value)}
             />
             <button className="btn btn-ghost" onClick={handleSaveTemplate}>
               <PlusIcon className="icon" /> Save Template
@@ -573,7 +613,7 @@ export default function TeacherDashboard({ user }) {
               style={{ minHeight: 70 }}
               placeholder="Rubric details (optional)"
               value={templateRubric}
-              onChange={(e) => setTemplateRubric(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setTemplateRubric(e.target.value)}
             />
           </div>
           {templates.length > 0 && (
@@ -607,7 +647,7 @@ export default function TeacherDashboard({ user }) {
               className="input"
               type="date"
               value={attendanceDate}
-              onChange={(e) => setAttendanceDate(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAttendanceDate(e.target.value)}
             />
             <button className="btn btn-primary" onClick={handleSaveAttendance}>
               Save Attendance
@@ -626,7 +666,7 @@ export default function TeacherDashboard({ user }) {
                     className="select"
                     style={{ width: 110 }}
                     value={attendance[s.uid] || "present"}
-                    onChange={(e) => setAttendance((prev) => ({ ...prev, [s.uid]: e.target.value }))}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAttendance((prev) => ({ ...prev, [s.uid]: e.target.value as AttendanceStatus }))}
                   >
                     <option value="present">Present</option>
                     <option value="tardy">Tardy</option>
