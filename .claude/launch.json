@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Vite Dev Server",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js"],
+      "port": 5173
+    },
+    {
+      "name": "Firebase Emulators",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/firebase-tools/lib/bin/firebase.js", "emulators:start", "--only", "auth,database,functions"],
+      "port": 4000
+    }
+  ]
+}

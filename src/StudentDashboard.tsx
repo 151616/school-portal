@@ -9,6 +9,7 @@ export default function StudentDashboard({ user }) {
   const [loading, setLoading] = useState(true);
   const [openClassId, setOpenClassId] = useState("");
   const [openRubrics, setOpenRubrics] = useState({});
+  const [parentCode, setParentCode] = useState(null);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -19,7 +20,9 @@ export default function StudentDashboard({ user }) {
     const unsubscribeUser = onValue(
       userRef,
       (snapshot) => {
-        setProfile(snapshot.exists() ? snapshot.val() : null);
+        const data = snapshot.exists() ? snapshot.val() : null;
+        setProfile(data);
+        setParentCode(data?.parentCode || null);
       },
       (error) => {
         console.error("Profile read error:", error);
@@ -182,6 +185,31 @@ export default function StudentDashboard({ user }) {
               Welcome, {renderName()}
               {profile?.studentId ? ` - Student ID: ${profile.studentId}` : ""}
             </div>
+            {parentCode && (
+              <div className="small" style={{ marginTop: 8 }}>
+                <strong>Parent Code:</strong>{" "}
+                <code
+                  style={{
+                    fontFamily: "monospace",
+                    letterSpacing: "0.1em",
+                    background: "var(--border)",
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                  }}
+                  title="Click to copy"
+                  onClick={() => {
+                    navigator.clipboard.writeText(parentCode);
+                    addToast("info", "Parent code copied!");
+                  }}
+                >
+                  {parentCode}
+                </code>
+                <div className="muted" style={{ fontSize: "0.75rem", marginTop: 2 }}>
+                  Share this code with your parent to connect their account.
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -16,6 +16,8 @@ const StudentDashboard = lazy(() => import("./StudentDashboard.jsx"));
 const AdminDashboard = lazy(() => import("./AdminDashboard.jsx"));
 const Settings = lazy(() => import("./Settings.jsx"));
 const PrivacyPolicy = lazy(() => import("./PrivacyPolicy.jsx"));
+const ParentSignup = lazy(() => import("./ParentSignup.jsx"));
+const ParentDashboard = lazy(() => import("./ParentDashboard.jsx"));
 
 function RouteFallback() {
   return <div className="app-container">Loading...</div>;
@@ -27,6 +29,7 @@ function RoleDashboardRoute() {
   if (role === "teacher") return <TeacherDashboard user={user} />;
   if (role === "student") return <StudentDashboard user={user} />;
   if (role === "admin") return <AdminDashboard user={user} />;
+  if (role === "parent") return <ParentDashboard user={user} />;
 
   return null;
 }
@@ -216,6 +219,7 @@ export default function App() {
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/signup" element={<Signup />} />
+        <Route path="/parent-signup" element={<ParentSignup />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route element={<AuthenticatedLayout />}>
           <Route path="/settings" element={<Settings />} />

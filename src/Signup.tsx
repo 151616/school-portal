@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { auth, db, functions } from "./firebase";
 import {
@@ -12,19 +12,20 @@ import Toasts from "./Toasts";
 import { addToast } from "./toastService";
 import { CheckIcon } from "./icons";
 import { ref, get } from "firebase/database";
+import type { Invite, AssignRoleData, AssignRoleResult } from "./types";
 
 export default function Signup() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [invite, setInvite] = useState(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastInitial, setLastInitial] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const lastInitialRef = useRef(null);
-  const passwordRef = useRef(null);
+  const [invite, setInvite] = useState<Invite | null>(null);
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [firstName, setFirstName] = useState<string>("");
+  const [lastInitial, setLastInitial] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const lastInitialRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   const inviteId = searchParams.get("inviteId");
 
@@ -76,9 +77,9 @@ export default function Signup() {
     }
 
     const lastInitialClean = lastInitial.trim().charAt(0).toUpperCase();
-    const assignRole = httpsCallable(functions, "assignRoleFromInvite");
-    const signupPayload = {
-      inviteId,
+    const assignRole = httpsCallable<AssignRoleData, AssignRoleResult>(functions, "assignRoleFromInvite");
+    const signupPayload: AssignRoleData = {
+      inviteId: inviteId!,
       firstName: firstName.trim(),
       lastInitial: lastInitialClean,
     };
@@ -156,7 +157,8 @@ export default function Signup() {
       navigate("/");
     } catch (error) {
       console.error("Signup error:", error);
-      addToast("error", "Signup failed: " + (error.message || error));
+      const msg = error instanceof Error ? error.message : String(error);
+      addToast("error", "Signup failed: " + msg);
     } finally {
       setSubmitting(false);
     }

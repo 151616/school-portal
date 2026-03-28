@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(hash -r)",
+      "Bash(bash -c \"git status\")",
+      "Bash(echo $CLAUDE_WORKTREE_NAME)",
+      "Bash(echo $CLAUDE_WORKTREE_DIR)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm run:*)",
+      "Bash(git mv:*)",
+      "Bash(GIT_DIR=/c/Users/shiva/Code/school-portal/.git GIT_WORK_TREE=/c/Users/shiva/Code/school-portal git status)",
+      "Bash(env)",
+      "Bash(echo $GIT_DIR)",
+      "Bash(git -C /c/Users/shiva/Code/school-portal --git-dir=/c/Users/shiva/Code/school-portal/.git status)",
+      "Bash(rm -rf /c/Users/shiva/Code/school-portal/.git/worktrees/xenodochial-curie /c/Users/shiva/Code/school-portal/.git/worktrees/ecstatic-fermat)",
+      "Bash(git -C /c/Users/shiva/Code/school-portal status)",
+      "Bash(git version:*)",
+      "Bash(GIT_DIR=/c/Users/shiva/Code/school-portal/.git git --work-tree=/c/Users/shiva/Code/school-portal status)",
+      "Bash(echo \"PWD=$PWD\")",
+      "Bash(GIT_TRACE=1 git status)",
+      "Bash(GIT_TRACE=2 git status)",
+      "Bash(git config:*)",
+      "Bash(mkdir -p /c/Users/shiva/Code/school-portal/.git/worktrees/xenodochial-curie)",
+      "Bash(/c/Users/shiva/Code/school-portal/.git/worktrees/xenodochial-curie/gitdir:*)",
+      "Bash(mkdir -p /c/Users/shiva/Code/school-portal/.git/worktrees/ecstatic-fermat)",
+      "Bash(/c/Users/shiva/Code/school-portal/.git/worktrees/ecstatic-fermat/gitdir:*)"
+    ]
+  }
+}

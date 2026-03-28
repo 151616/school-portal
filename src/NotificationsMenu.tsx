@@ -1,9 +1,18 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { onValue, ref, update } from "firebase/database";
+import type { User } from "firebase/auth";
+import type { DataSnapshot } from "firebase/database";
 import { db } from "./firebase";
 import { BellIcon } from "./icons";
+import type { Notification } from "./types/index";
 
-const formatRelativeTime = (ts) => {
+type NotificationWithId = Notification & { id: string };
+
+interface NotificationsMenuProps {
+  currentUser: User | null;
+}
+
+const formatRelativeTime = (ts: number): string => {
   if (!ts) return "";
 
   const diff = Date.now() - ts;
@@ -22,10 +31,10 @@ const formatRelativeTime = (ts) => {
   return new Date(ts).toLocaleDateString();
 };
 
-export default function NotificationsMenu({ currentUser }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const menuRef = useRef(null);
+export default function NotificationsMenu({ currentUser }: NotificationsMenuProps) {
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState<NotificationWithId[]>([]);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!currentUser) return undefined;
@@ -33,14 +42,14 @@ export default function NotificationsMenu({ currentUser }) {
     const notificationsRef = ref(db, `notifications/${currentUser.uid}`);
     const unsubscribe = onValue(
       notificationsRef,
-      (snapshot) => {
-        const data = snapshot.exists() ? snapshot.val() : {};
-        const list = Object.entries(data)
+      (snapshot: DataSnapshot) => {
+        const data: Record<string, Notification> = snapshot.exists() ? snapshot.val() : {};
+        const list: NotificationWithId[] = Object.entries(data)
           .map(([id, item]) => ({ id, ...item }))
           .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         setNotifications(list);
       },
-      (error) => {
+      (error: Error) => {
         console.error("Notifications read error:", error);
       }
     );
@@ -51,13 +60,13 @@ export default function NotificationsMenu({ currentUser }) {
   useEffect(() => {
     if (!isOpen) return undefined;
 
-    const handleClick = (event) => {
+    const handleClick = (event: MouseEvent) => {
       if (!menuRef.current) return;
-      if (menuRef.current.contains(event.target)) return;
+      if (menuRef.current.contains(event.target as Node)) return;
       setIsOpen(false);
     };
 
-    const handleKey = (event) => {
+    const handleKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setIsOpen(false);
     };
 
@@ -75,7 +84,7 @@ export default function NotificationsMenu({ currentUser }) {
     [notifications]
   );
 
-  const markNotificationRead = async (notificationId) => {
+  const markNotificationRead = async (notificationId: string): Promise<void> => {
     if (!currentUser || !notificationId) return;
 
     setNotifications((prev) =>
@@ -91,7 +100,7 @@ export default function NotificationsMenu({ currentUser }) {
     }
   };
 
-  const toggleMenu = () => {
+  const toggleMenu = (): void => {
     setIsOpen((prev) => !prev);
   };
 

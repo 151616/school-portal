@@ -6,14 +6,16 @@ import { addToast } from "./toastService";
 
 const roleTargets = {
   student: ["teacher"],
-  teacher: ["student", "admin"],
+  teacher: ["student", "admin", "parent"],
   admin: ["teacher", "student"],
+  parent: ["teacher"],
 };
 
 const allowedPairs = new Set([
   "admin:student",
   "admin:teacher",
   "student:teacher",
+  "parent:teacher",
 ]);
 
 const threadIdFor = (a, b) => [a, b].sort().join("_");

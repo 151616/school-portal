@@ -35,6 +35,7 @@ export default function TeacherDashboard({ user }) {
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState("");
   const [assignmentName, setAssignmentName] = useState("");
+  const [assignmentType, setAssignmentType] = useState("");
   const [maxScore, setMaxScore] = useState("");
   const [assignmentRubric, setAssignmentRubric] = useState("");
   const [scores, setScores] = useState({});
@@ -230,6 +231,7 @@ export default function TeacherDashboard({ user }) {
           rubric: assignmentRubric.trim() || "",
           teacherUid: user.uid,
           updatedAt: Date.now(),
+          ...(assignmentType ? { type: assignmentType } : {}),
         });
       });
 
@@ -315,6 +317,7 @@ export default function TeacherDashboard({ user }) {
     setAssignmentName(tmpl.name || "");
     setMaxScore(String(tmpl.maxScore ?? ""));
     setAssignmentRubric(tmpl.rubric || "");
+    setAssignmentType("");
     addToast("success", "Template applied");
   };
 
@@ -388,6 +391,7 @@ export default function TeacherDashboard({ user }) {
               onChange={(e) => {
                 setSelectedClassId(e.target.value);
                 setScores({});
+                setAssignmentType("");
               }}
             >
               <option value="">Select class</option>
@@ -415,6 +419,16 @@ export default function TeacherDashboard({ user }) {
                 value={assignmentName}
                 onChange={(e) => setAssignmentName(e.target.value)}
               />
+              <select
+                className="input"
+                value={assignmentType}
+                onChange={(e) => setAssignmentType(e.target.value)}
+                style={{ maxWidth: 200 }}
+              >
+                <option value="">Type (optional)</option>
+                <option value="ca">CA (Continuous Assessment)</option>
+                <option value="exam">Exam</option>
+              </select>
               <input
                 className="input"
                 placeholder="Max score"

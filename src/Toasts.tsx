@@ -1,13 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckIcon, AlertIcon } from './icons';
+import type { ToastType } from './toastService';
+
+interface Toast {
+  id: number;
+  type?: ToastType;
+  message: string;
+  timeout?: number;
+}
 
 export default function Toasts() {
-  const [toasts, setToasts] = useState([]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => {
-    const handler = (e) => {
+    const handler = (e: Event) => {
       const id = Date.now() + Math.random();
-      const t = { id, ...e.detail };
+      const t: Toast = { id, ...(e as CustomEvent).detail };
       setToasts((s) => [...s, t]);
       setTimeout(() => setToasts((s) => s.filter((x) => x.id !== id)), t.timeout || 4000);
     };

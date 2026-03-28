@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+const logo = "/logo.png";
 import MessagingPanel from "./MessagingPanel";
 import NotificationsMenu from "./NotificationsMenu";
 import { LogoutIcon, SettingsIcon } from "./icons";
@@ -8,6 +9,7 @@ const roleLabels = {
   student: "Student Portal",
   teacher: "Teacher Workspace",
   admin: "Admin Console",
+  parent: "Parent Portal",
 };
 
 export default function AppHeader({ currentUser, currentRole, onLogout }) {
@@ -20,6 +22,7 @@ export default function AppHeader({ currentUser, currentRole, onLogout }) {
       <div className="app-topbar-inner">
         <div className="app-brand-block">
           <Link className="app-brand" to="/">
+            <img src={logo} alt="KGrades Logo" className="app-brand-logo" />
             KGrades
           </Link>
           <span className="app-role-chip">{roleLabels[currentRole] || "School Portal"}</span>

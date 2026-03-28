@@ -3,7 +3,7 @@ import { connectAuthEmulator, getAuth } from "firebase/auth";
 import { connectDatabaseEmulator, getDatabase } from "firebase/database";
 import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
 
-const firebaseConfig = {
+const firebaseConfig: Record<string, string> = {
   apiKey: "AIzaSyA4rxRqSjMe1cKz7alcsotaLdTK1UWUKpE",
   authDomain: "kgrades.firebaseapp.com",
   databaseURL: "https://kgrades-default-rtdb.firebaseio.com",
@@ -16,7 +16,7 @@ const firebaseConfig = {
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-const parsePort = (value, fallback) => {
+const parsePort = (value: string | undefined, fallback: number): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };

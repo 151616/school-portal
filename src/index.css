@@ -126,6 +126,15 @@ body {
   font-size: 1.3rem;
   font-weight: 700;
   letter-spacing: 0.2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.app-brand-logo {
+  height: 32px;
+  width: 32px;
+  object-fit: contain;
+  border-radius: 6px;
 }
 .app-role-chip {
   display: inline-flex;
@@ -744,3 +753,179 @@ body {
 .attend-badge.tardy   { color: #8a7a00; }
 .attend-badge.absent  { color: #c02020; }
 .attend-badge.excused { color: #2a6aaa; }
+
+/* ── Parent Portal & Mobile-First Responsive ── */
+
+/* Parent code display */
+.parent-code {
+  font-family: monospace;
+  letter-spacing: 0.1em;
+  background: var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: all;
+}
+
+/* Tab navigation - mobile friendly */
+.tab-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.tab-nav .btn {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+/* Child switcher pills */
+.child-switcher {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+}
+
+.child-switcher .btn {
+  flex: 0 0 auto;
+}
+
+/* Attendance color chips */
+.attendance-chip {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.75rem;
+}
+
+.attendance-chip--present { background: var(--accent); }
+.attendance-chip--tardy { background: #e67e22; }
+.attendance-chip--absent { background: var(--error, #c0392b); }
+.attendance-chip--excused { background: #7f8c8d; }
+
+/* Modal backdrop */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-content {
+  max-width: 420px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Grade table responsive */
+.grade-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.grade-table th,
+.grade-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.grade-table th {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+/* Mobile breakpoint */
+@media (max-width: 600px) {
+  .app-container {
+    padding: 8px;
+  }
+
+  .card {
+    padding: 12px;
+  }
+
+  .card-header h2,
+  .card-header h3 {
+    font-size: 1.1rem;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .tab-nav .btn {
+    font-size: 0.85rem;
+    padding: 8px 12px;
+  }
+
+  /* Stack grade table on mobile */
+  .grade-table thead {
+    display: none;
+  }
+
+  .grade-table tr {
+    display: block;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .grade-table td {
+    display: block;
+    border: none;
+    padding: 2px 0;
+    font-size: 0.9rem;
+  }
+
+  .grade-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    margin-right: 8px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  /* Compact header on mobile */
+  .app-header {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px 12px;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  .header-actions .btn {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+
+  /* Summary card compact */
+  .summary-stats {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 400px) {
+  .child-switcher .btn {
+    flex: 1 1 calc(50% - 4px);
+    font-size: 0.8rem;
+  }
+
+  .attendance-chip {
+    font-size: 0.65rem;
+    padding: 1px 4px;
+  }
+}

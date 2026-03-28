@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { signInWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "./firebase";
 import Toasts from './Toasts';
@@ -6,12 +6,12 @@ import { addToast } from './toastService';
 import { CheckIcon } from './icons';
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [resetEmail, setResetEmail] = useState("");
-  const [showReset, setShowReset] = useState(false);
-  const passwordRef = useRef(null);
-  const resetEmailRef = useRef(null);
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [resetEmail, setResetEmail] = useState<string>("");
+  const [showReset, setShowReset] = useState<boolean>(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const resetEmailRef = useRef<HTMLInputElement>(null);
 
   const handleLogin = async () => {
     if (!email || !password) return addToast('error', 'Fill both fields!');
@@ -109,6 +109,13 @@ export default function Login() {
               </div>
             </div>
 
+            <div className="small muted" style={{ textAlign: "center", marginTop: 12 }}>
+              Are you a parent?{" "}
+              <a href="/parent-signup" style={{ color: "var(--accent)" }}>
+                Sign up here
+              </a>
+            </div>
+
             {showReset && (
               <div className="auth-form-stack" style={{ marginTop: 10 }}>
                 <input
@@ -130,9 +137,9 @@ export default function Login() {
         </div>
 
         <div className="login-brand-side">
-          <div className="login-brand-name">kgrades</div>
+          <div className="login-brand-name">KGrades</div>
           <div className="login-brand-tagline">
-            School management built for classrooms that matter — across Africa and India.
+            School management built for classrooms that matter — across the world.
           </div>
           <ul className="login-feature-list">
             <li><span className="login-feature-dot" />Grade tracking &amp; rubrics</li>
