@@ -7,9 +7,9 @@ import { auth, db } from "./firebase";
 import type { UserRole } from "./types";
 
 import AppHeader from "./AppHeader";
-import Toasts from "./Toasts";
-import { LogoutIcon } from "./icons";
-import { addToast } from "./toastService";
+import Toasts from "@/shared/components/Toasts";
+import { LogoutIcon } from "@/shared/icons";
+import { addToast } from "@/shared/toastService";
 
 const Login = lazy(() => import("./Login"));
 const Signup = lazy(() => import("./Signup"));

@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
-import { ref, set, push, onValue, query, orderByChild, limitToLast } from "firebase/database";
+import { ref, onValue, query, orderByChild, limitToLast } from "firebase/database";
 import { httpsCallable } from "firebase/functions";
-import { db, auth, functions } from "../firebase";
-import { addToast } from "../toastService";
-import ConfirmModal from "../ConfirmModal";
-import { CopyIcon, DeleteIcon, PlusIcon, LinkIcon } from "../icons";
+import { db, auth, functions } from "@/firebase";
+import { addToast } from "@/shared/toastService";
+import ConfirmModal from "@/shared/components/ConfirmModal";
+import { formatAuditTime } from "@/shared/utils/dateUtils";
+import { parseCSV, downloadCSV } from "@/shared/utils/csvUtils";
+import { logAudit } from "@/shared/utils/auditUtils";
+import { CopyIcon, DeleteIcon, PlusIcon, LinkIcon } from "@/shared/icons";
 
 // ---- shared types for this module ----
 
@@ -52,91 +55,6 @@ export interface AdminUsersProps {
 // ---- helpers ----
 
 const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-
-const parseCSVLine = (line: string): string[] => {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === "," && !inQuotes) {
-      result.push(current);
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  result.push(current);
-  return result;
-};
-
-const parseCSV = (text: string): Record<string, string>[] => {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
-  if (lines.length === 0) return [];
-  const headers = parseCSVLine(lines[0]!).map((h) => h.trim());
-  return lines.slice(1).map((line) => {
-    const cols = parseCSVLine(line);
-    const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      obj[h] = (cols[idx] || "").trim();
-    });
-    return obj;
-  });
-};
-
-const escapeCSV = (value: unknown): string => {
-  const text = String(value ?? "");
-  const safeText = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
-  if (/[",\n]/.test(safeText)) {
-    return `"${safeText.replace(/"/g, '""')}"`;
-  }
-  return safeText;
-};
-
-const downloadCSV = (filename: string, rows: string[][]) => {
-  const content = rows.map((row) => row.map(escapeCSV).join(",")).join("\n");
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.setAttribute("download", filename);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-};
-
-const formatAuditTime = (ts: number | undefined): string => {
-  if (!ts) return "Unknown time";
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return String(ts);
-  }
-};
-
-const logAudit = async (action: string, details: Record<string, unknown> = {}) => {
-  if (!auth.currentUser) return;
-  try {
-    const entry = {
-      action,
-      createdAt: Date.now(),
-      actorUid: auth.currentUser.uid,
-      actorEmail: auth.currentUser.email || "",
-      ...details,
-    };
-    await set(push(ref(db, "auditLogs")), entry);
-  } catch (err) {
-    console.error("Audit log error:", err);
-  }
-};
 
 // ---- component ----
 

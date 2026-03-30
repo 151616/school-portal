@@ -119,6 +119,32 @@
         ".write": "auth != null && auth.token.admin === true",
         ".validate": "newData.hasChildren(['caWeight','examWeight']) && newData.child('caWeight').isNumber() && newData.child('examWeight').isNumber()"
       }
+    },
+    "academicConfig": {
+      ".read": "auth != null",
+      "$schoolId": {
+        ".write": "auth != null && auth.token.admin === true"
+      }
+    },
+    "reportCards": {
+      "$sessionId": {
+        "$termId": {
+          ".read": "auth != null && auth.token.admin === true",
+          "$studentUid": {
+            ".read": "auth != null && (auth.token.admin === true || auth.uid === $studentUid || root.child('parents').child(auth.uid).child('children').child($studentUid).val() === true)"
+          }
+        }
+      }
+    },
+    "reportComments": {
+      "$sessionId": {
+        "$termId": {
+          ".read": "auth != null && (auth.token.admin === true || root.child('Users').child(auth.uid).child('role').val() === 'teacher')",
+          "$studentUid": {
+            ".write": "auth != null && (auth.token.admin === true || root.child('Users').child(auth.uid).child('role').val() === 'teacher')"
+          }
+        }
+      }
     }
   }
 }

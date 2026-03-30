@@ -24,6 +24,8 @@ export interface Assignment {
   type?: AssignmentType;
   teacherUid: string;
   updatedAt: number;
+  termId?: string;       // e.g. "term2"
+  sessionId?: string;    // e.g. "2025-2026"
 }
 
 // ── classes/{classId}/students/{uid} ──

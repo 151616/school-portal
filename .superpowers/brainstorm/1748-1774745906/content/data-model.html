@@ -1,0 +1,101 @@
+<h2>Data Model: Terms, Report Cards & Trends</h2>
+<p class="subtitle">New Firebase RTDB paths and modifications to existing ones</p>
+
+<div class="section">
+  <h3>1. Academic Calendar (New)</h3>
+  <div class="mockup">
+    <div class="mockup-header">academicConfig/{schoolId}</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 1.6;">
+<pre style="margin:0; white-space:pre-wrap;">{
+  "termStructure": ["1st Term", "2nd Term", "3rd Term"],
+  "sessions": {
+    "2025-2026": {
+      "label": "2025/2026",
+      "terms": {
+        "term1": { "label": "1st Term", "startDate": "2025-09-08", "endDate": "2025-12-13" },
+        "term2": { "label": "2nd Term", "startDate": "2026-01-06", "endDate": "2026-04-04" },
+        "term3": { "label": "3rd Term", "startDate": "2026-04-28", "endDate": "2026-07-18" }
+      },
+      "activeTerm": "term2"
+    }
+  },
+  "currentSession": "2025-2026"
+}</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>2. Assignment Modification (Existing + termId)</h3>
+  <div class="mockup">
+    <div class="mockup-header">grades/{studentUid}/{classId}/assignments/{assignmentId}</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 1.6;">
+<pre style="margin:0; white-space:pre-wrap;">{
+  "name": "Mid-term Test",
+  "score": 35,
+  "maxScore": 40,
+  "type": "ca",
+  <span style="color: #2ecc71; font-weight: bold;">"termId": "term2",           // NEW</span>
+  <span style="color: #2ecc71; font-weight: bold;">"sessionId": "2025-2026",    // NEW</span>
+  "teacherUid": "abc123",
+  "updatedAt": 1711500000000
+}</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>3. Published Report Cards (New - Immutable Snapshots)</h3>
+  <div class="mockup">
+    <div class="mockup-header">reportCards/{sessionId}/{termId}/{studentUid}</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 1.6;">
+<pre style="margin:0; white-space:pre-wrap;">{
+  "studentName": "Adaeze Okonkwo",
+  "studentId": "KGR-0042",
+  "className": "JSS 2A",
+  "session": "2025/2026",
+  "term": "2nd Term",
+  "publishedAt": 1711900000000,
+  "publishedBy": "adminUid123",
+
+  "subjects": {
+    "classId1": {
+      "name": "Mathematics",
+      "caScore": 32,
+      "caMax": 40,
+      "examScore": 52,
+      "examMax": 60,
+      "total": 84,
+      "totalMax": 100,
+      "grade": "A",
+      "teacherRemark": "Excellent performance"
+    },
+    ...
+  },
+
+  "classPosition": 3,
+  "classSize": 45,
+  "overallAverage": 78.5,
+  "attendance": { "present": 52, "total": 58 },
+  "teacherComment": "A dedicated and brilliant student.",
+  "principalComment": "Keep it up!",
+  "nextTermResumes": "2026-04-28"
+}</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>4. Teacher & Principal Comments (New - Pre-publish)</h3>
+  <div class="mockup">
+    <div class="mockup-header">reportComments/{sessionId}/{termId}/{studentUid}</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 1.6;">
+<pre style="margin:0; white-space:pre-wrap;">{
+  "teacherComment": "A dedicated and brilliant student.",
+  "principalComment": "Keep it up!"
+}</pre>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top: 24px;">Check <strong>http://localhost:61748</strong> for the visual. Does this data model look right?</p>

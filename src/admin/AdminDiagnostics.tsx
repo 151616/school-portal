@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { ref, set, get } from "firebase/database";
 import { httpsCallable } from "firebase/functions";
-import { db, auth, functions, firebaseConfig } from "../firebase";
-import { addToast } from "../toastService";
+import { db, auth, functions, firebaseConfig } from "@/firebase";
+import { addToast } from "@/shared/toastService";
 
 interface DiagnosticsState {
   loading: boolean;

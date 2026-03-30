@@ -7,9 +7,9 @@ import {
   sendEmailVerification,
 } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
-import Toasts from "./Toasts";
-import { addToast } from "./toastService";
-import { CheckIcon } from "./icons";
+import Toasts from "@/shared/components/Toasts";
+import { addToast } from "@/shared/toastService";
+import { CheckIcon } from "@/shared/icons";
 import type { ClaimParentCodeData, ClaimParentCodeResult } from "./types";
 
 export default function ParentSignup() {

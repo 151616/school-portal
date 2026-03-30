@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { ref, set, onValue } from "firebase/database";
 import { httpsCallable } from "firebase/functions";
-import { db, functions } from "../firebase";
-import { addToast } from "../toastService";
+import { db, functions } from "@/firebase";
+import { addToast } from "@/shared/toastService";
 
 export default function AdminSettings() {
   const [caWeight, setCaWeight] = useState<number>(40);

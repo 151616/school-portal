@@ -3,7 +3,7 @@ import { onValue, ref, update } from "firebase/database";
 import type { User } from "firebase/auth";
 import type { DataSnapshot } from "firebase/database";
 import { db } from "./firebase";
-import { BellIcon } from "./icons";
+import { BellIcon } from "@/shared/icons";
 import type { Notification } from "./types/index";
 
 type NotificationWithId = Notification & { id: string };

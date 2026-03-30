@@ -1,0 +1,184 @@
+<h2>UI Flows: Who Does What</h2>
+<p class="subtitle">How each role interacts with terms, report cards, and trends</p>
+
+<!-- ADMIN FLOW -->
+<div class="section">
+  <h3>1. Admin Dashboard — New "Academic Calendar" & "Report Cards" tabs</h3>
+  <div class="mockup">
+    <div class="mockup-header">Admin → Academic Calendar Tab</div>
+    <div class="mockup-body" style="padding: 16px;">
+      <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <button class="mock-button" style="opacity:0.5">Users</button>
+        <button class="mock-button" style="opacity:0.5">Classes</button>
+        <button class="mock-button" style="background:#1a365d; color:white;">Academic Calendar</button>
+        <button class="mock-button" style="opacity:0.5">Report Cards</button>
+        <button class="mock-button" style="opacity:0.5">Settings</button>
+      </div>
+      <div style="border:1px solid #ddd; border-radius:8px; padding:16px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <strong>Session: 2025/2026</strong>
+          <button class="mock-button" style="font-size:12px;">+ New Session</button>
+        </div>
+        <div style="display:flex; gap:12px;">
+          <div style="flex:1; border:1px solid #ddd; border-radius:6px; padding:12px; background:#f0f7ff;">
+            <div style="font-weight:bold; color:#1a365d;">1st Term <span style="background:#2ecc71; color:white; font-size:10px; padding:2px 6px; border-radius:10px; margin-left:4px;">ACTIVE</span></div>
+            <div style="font-size:12px; color:#666; margin-top:4px;">Sep 8 — Dec 13, 2025</div>
+          </div>
+          <div style="flex:1; border:1px solid #ddd; border-radius:6px; padding:12px;">
+            <div style="font-weight:bold;">2nd Term</div>
+            <div style="font-size:12px; color:#666; margin-top:4px;">Jan 6 — Apr 4, 2026</div>
+          </div>
+          <div style="flex:1; border:1px solid #ddd; border-radius:6px; padding:12px;">
+            <div style="font-weight:bold;">3rd Term</div>
+            <div style="font-size:12px; color:#666; margin-top:4px;">Apr 28 — Jul 18, 2026</div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12px; color:#888;">Admin can: create sessions, define terms with date ranges, set active term, configure term labels (2-term or 3-term).</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">Admin → Report Cards Tab (Bulk Publish)</div>
+    <div class="mockup-body" style="padding: 16px;">
+      <div style="display:flex; gap:12px; margin-bottom:16px; align-items:center;">
+        <select class="mock-input" style="width:auto; padding:6px;">
+          <option>2025/2026</option>
+        </select>
+        <select class="mock-input" style="width:auto; padding:6px;">
+          <option>1st Term</option>
+          <option selected>2nd Term</option>
+        </select>
+      </div>
+
+      <div style="border:1px solid #ddd; border-radius:8px; overflow:hidden; margin-bottom:16px;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead>
+            <tr style="background:#f8f9fa;">
+              <th style="padding:10px; text-align:left;">Class</th>
+              <th style="padding:10px; text-align:center;">Students</th>
+              <th style="padding:10px; text-align:center;">Grades Complete</th>
+              <th style="padding:10px; text-align:center;">Comments</th>
+              <th style="padding:10px; text-align:center;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-top:1px solid #eee;">
+              <td style="padding:10px;">JSS 2A</td>
+              <td style="padding:10px; text-align:center;">45</td>
+              <td style="padding:10px; text-align:center;"><span style="color:#2ecc71;">45/45</span></td>
+              <td style="padding:10px; text-align:center;"><span style="color:#2ecc71;">45/45</span></td>
+              <td style="padding:10px; text-align:center;"><span style="color:#2ecc71;">Ready</span></td>
+            </tr>
+            <tr style="border-top:1px solid #eee;">
+              <td style="padding:10px;">JSS 2B</td>
+              <td style="padding:10px; text-align:center;">42</td>
+              <td style="padding:10px; text-align:center;"><span style="color:#e67e22;">38/42</span></td>
+              <td style="padding:10px; text-align:center;"><span style="color:#e74c3c;">20/42</span></td>
+              <td style="padding:10px; text-align:center;"><span style="color:#e67e22;">Incomplete</span></td>
+            </tr>
+            <tr style="border-top:1px solid #eee;">
+              <td style="padding:10px;">SS 1A</td>
+              <td style="padding:10px; text-align:center;">38</td>
+              <td style="padding:10px; text-align:center;"><span style="color:#2ecc71;">38/38</span></td>
+              <td style="padding:10px; text-align:center;"><span style="color:#2ecc71;">38/38</span></td>
+              <td style="padding:10px; text-align:center;"><span style="background:#2ecc71; color:white; padding:2px 8px; border-radius:4px; font-size:11px;">Published</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display:flex; gap:8px;">
+        <button class="mock-button" style="background:#1a365d; color:white;">Publish All Ready Classes</button>
+        <button class="mock-button">Preview Report Card</button>
+        <button class="mock-button">Download All as ZIP</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TEACHER FLOW -->
+<div class="section">
+  <h3>2. Teacher Dashboard — Term Selector & Comments</h3>
+  <div class="mockup">
+    <div class="mockup-header">Teacher → Grade Entry (Modified)</div>
+    <div class="mockup-body" style="padding: 16px;">
+      <div style="display:flex; gap:12px; margin-bottom:16px; align-items:center;">
+        <select class="mock-input" style="width:auto; padding:6px;">
+          <option>JSS 2A — Mathematics</option>
+        </select>
+        <div style="border:1px solid #1a365d; border-radius:6px; padding:6px 12px; background:#f0f7ff; font-size:13px;">
+          <strong>Active Term:</strong> 2nd Term (2025/2026)
+        </div>
+      </div>
+      <p style="font-size:12px; color:#666; margin-bottom:12px;">New assignments auto-tagged with the active term. Teachers also get a "Report Comments" section to write per-student remarks before admin publishes.</p>
+      <div style="border:1px solid #ddd; border-radius:6px; padding:12px; background:#fffbe6;">
+        <strong style="font-size:13px;">Report Comments (2nd Term)</strong>
+        <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+          <span style="font-size:13px; min-width:140px;">Adaeze Okonkwo:</span>
+          <input class="mock-input" style="flex:1;" placeholder="Excellent performance, keep it up..." value="A dedicated and brilliant student.">
+        </div>
+        <div style="display:flex; gap:8px; margin-top:6px; align-items:center;">
+          <span style="font-size:13px; min-width:140px;">Chidi Nwankwo:</span>
+          <input class="mock-input" style="flex:1;" placeholder="Write a remark for this student...">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PARENT FLOW -->
+<div class="section">
+  <h3>3. Parent Dashboard — Report Cards & Trend Chart</h3>
+  <div class="mockup">
+    <div class="mockup-header">Parent → Grades Tab (Modified + Trend)</div>
+    <div class="mockup-body" style="padding: 16px;">
+      <div style="display:flex; gap:12px; margin-bottom:16px; align-items:center;">
+        <select class="mock-input" style="width:auto; padding:6px;">
+          <option>Adaeze Okonkwo</option>
+        </select>
+        <select class="mock-input" style="width:auto; padding:6px;">
+          <option>2025/2026</option>
+        </select>
+        <select class="mock-input" style="width:auto; padding:6px;">
+          <option>2nd Term</option>
+        </select>
+      </div>
+
+      <!-- Trend Chart -->
+      <div style="border:1px solid #ddd; border-radius:8px; padding:16px; margin-bottom:16px;">
+        <strong style="font-size:14px;">Academic Trend</strong>
+        <div style="display:flex; align-items:flex-end; gap:4px; height:120px; margin-top:12px; padding:0 20px;">
+          <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+            <div style="background:#cbd5e0; width:100%; border-radius:4px 4px 0 0; height:72px;"></div>
+            <span style="font-size:10px; margin-top:4px; color:#666;">T1</span>
+            <span style="font-size:11px; font-weight:bold;">72%</span>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+            <div style="background:#1a365d; width:100%; border-radius:4px 4px 0 0; height:94px;"></div>
+            <span style="font-size:10px; margin-top:4px; color:#666;">T2</span>
+            <span style="font-size:11px; font-weight:bold;">78.5%</span>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:center; flex:1; opacity:0.3;">
+            <div style="background:#ddd; width:100%; border-radius:4px 4px 0 0; height:0px; border:1px dashed #ccc; min-height:20px;"></div>
+            <span style="font-size:10px; margin-top:4px; color:#666;">T3</span>
+            <span style="font-size:11px; color:#999;">—</span>
+          </div>
+        </div>
+        <div style="text-align:center; margin-top:8px; font-size:12px; color:#2ecc71;">↑ 6.5% improvement from last term</div>
+      </div>
+
+      <!-- Report Card Button -->
+      <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <button class="mock-button" style="background:#1a365d; color:white;">View Report Card</button>
+        <button class="mock-button">Download PDF</button>
+      </div>
+
+      <p style="font-size:12px; color:#888;">Parents see per-term grades, trend chart across terms, and can view/download published report cards. "View all sessions" link expands to full history.</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top: 24px;">Check <strong>http://localhost:61748</strong> for the wireframes. Do these UI flows look right?</p>

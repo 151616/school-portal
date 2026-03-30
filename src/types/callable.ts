@@ -69,3 +69,29 @@ export interface BackfillResult {
   generated: number;
   skipped: number;
 }
+
+// ── publishReportCards ──
+export interface PublishReportCardsData {
+  sessionId: string;
+  termId: string;
+  schoolId: string;
+}
+
+export interface PublishReportCardsResult {
+  success: boolean;
+  published: number;
+  skipped: number;
+  errors: string[];
+}
+
+// ── backfillAssignmentTerms ──
+export interface BackfillAssignmentTermsData {
+  sessionId: string;
+  schoolId: string;
+}
+
+export interface BackfillAssignmentTermsResult {
+  success: boolean;
+  updated: number;
+  unmatched: number;
+}
