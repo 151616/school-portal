@@ -5,8 +5,6 @@ import { addToast } from "@/shared/toastService";
 import { PlusIcon, CheckIcon } from "@/shared/icons";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { SchoolClass, ClassStudent, Assignment, AttendanceStatus, TeacherTemplate } from "@/types";
-import { toISODate, getRecentDates } from "@/shared/utils/dateUtils";
-import { useAcademicConfig } from "@/shared/hooks/useAcademicConfig";
 
 interface Props {
   user: FirebaseUser;
@@ -46,6 +44,25 @@ const slugify = (value: string): string =>
     .replace(/(^-|-$)/g, "")
     .slice(0, 40);
 
+const toISODate = (date: Date): string => {
+  const d = new Date(date);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const getRecentDates = (days = 7): string[] => {
+  const list: string[] = [];
+  const today = new Date();
+  for (let i = 0; i < days; i += 1) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    list.push(toISODate(d));
+  }
+  return list;
+};
+
 export default function TeacherDashboard({ user }: Props) {
   const [classes, setClasses] = useState<ClassWithId[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>("");
@@ -68,8 +85,6 @@ export default function TeacherDashboard({ user }: Props) {
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
   const [attendanceSummary, setAttendanceSummary] = useState<AttendanceSummaryRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [reportComments, setReportComments] = useState<Record<string, string>>({});
-  const [commentsSaving, setCommentsSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -184,28 +199,6 @@ export default function TeacherDashboard({ user }: Props) {
     loadSummary();
   }, [selectedClassId, roster]);
 
-  const { activeTerm } = useAcademicConfig();
-
-  useEffect(() => {
-    if (!selectedClassId || !activeTerm) return;
-    const selectedClassObj = classes.find((c) => c.id === selectedClassId);
-    if (!selectedClassObj?.students) return;
-
-    const studentUids = Object.keys(selectedClassObj.students);
-    const comments: Record<string, string> = {};
-
-    Promise.all(
-      studentUids.map(async (uid) => {
-        const snap = await get(
-          ref(db, `reportComments/${activeTerm.sessionId}/${activeTerm.termId}/${uid}/teacherComment`)
-        );
-        if (snap.exists()) {
-          comments[uid] = snap.val() as string;
-        }
-      })
-    ).then(() => setReportComments(comments));
-  }, [selectedClassId, activeTerm, classes]);
-
   const filteredRoster = useMemo((): ClassStudent[] => {
     const q = rosterSearch.trim().toLowerCase();
     return roster.filter((s) => {
@@ -260,13 +253,12 @@ export default function TeacherDashboard({ user }: Props) {
 
       const gradePayload: Omit<Assignment, "type"> & { type?: "ca" | "exam" } = {
         name: assignmentName.trim(),
-        score: 0, // placeholder — overridden per student below
+        score: 0, // placeholder � overridden per student below
         maxScore: Number(maxScore),
         rubric: assignmentRubric.trim() || "",
         teacherUid: user.uid,
         updatedAt: Date.now(),
         ...(assignmentType ? { type: assignmentType } : {}),
-        ...(activeTerm ? { termId: activeTerm.termId, sessionId: activeTerm.sessionId } : {}),
       };
 
       const writes = scoredStudents.map(({ student, scoreValue }) => {
@@ -380,26 +372,6 @@ export default function TeacherDashboard({ user }: Props) {
     }
   };
 
-  const handleSaveComments = async (): Promise<void> => {
-    if (!activeTerm || !selectedClassId) return;
-    setCommentsSaving(true);
-    try {
-      const writes = Object.entries(reportComments)
-        .filter(([, comment]) => comment.trim())
-        .map(([uid, comment]) =>
-          set(
-            ref(db, `reportComments/${activeTerm.sessionId}/${activeTerm.termId}/${uid}/teacherComment`),
-            comment.trim()
-          )
-        );
-      await Promise.all(writes);
-      addToast("success", "Report comments saved");
-    } catch (err) {
-      addToast("error", "Failed to save comments: " + (err as Error).message);
-    }
-    setCommentsSaving(false);
-  };
-
   const loadStudentHistory = async (student: ClassStudent): Promise<void> => {
     if (!student || !selectedClassId) return;
     try {
@@ -465,23 +437,18 @@ export default function TeacherDashboard({ user }: Props) {
               <option value="">Select class</option>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.id} — {c.name || "Untitled"}
+                  {c.id} � {c.name || "Untitled"}
                 </option>
               ))}
             </select>
           </div>
-          {activeTerm && (
-            <div style={{ border: "1px solid #1a365d", borderRadius: 6, padding: "6px 12px", background: "#f0f7ff", fontSize: 13 }}>
-              <strong>Active:</strong> {activeTerm.termLabel} ({activeTerm.sessionLabel})
-            </div>
-          )}
           {loading && <div className="small" style={{ marginTop: 8 }}>Loading classes...</div>}
         </div>
 
         {selectedClass && (
           <div className="section">
             <div className="instructions">
-              Enter an assignment name once, then add scores for each student. Re‑using the same
+              Enter an assignment name once, then add scores for each student. Re-using the same
               assignment name will overwrite (edit) previous scores.
             </div>
 
@@ -579,7 +546,7 @@ export default function TeacherDashboard({ user }: Props) {
                     <div key={s.uid} className="roster-row">
                       <div style={{ cursor: "pointer" }} onClick={() => { setSelectedStudent(s); loadStudentHistory(s); }}>
                         <div>{s.firstName || "Student"} {s.lastInitial ? `${s.lastInitial}.` : ""}</div>
-                        <div className="meta">{s.email}{s.studentId ? ` · ID: ${s.studentId}` : ""}</div>
+                        <div className="meta">{s.email}{s.studentId ? ` � ID: ${s.studentId}` : ""}</div>
                       </div>
                       <input
                         className="input"
@@ -598,7 +565,7 @@ export default function TeacherDashboard({ user }: Props) {
               <div className="section">
                 <h3>Student Details</h3>
                 <div className="small">
-                  {selectedStudent.firstName || "Student"} {selectedStudent.lastInitial ? `${selectedStudent.lastInitial}.` : ""} • {selectedStudent.email}
+                  {selectedStudent.firstName || "Student"} {selectedStudent.lastInitial ? `${selectedStudent.lastInitial}.` : ""} � {selectedStudent.email}
                 </div>
                 <div className="small" style={{ marginTop: 6 }}>
                   Current average: {studentAverage !== null ? `${studentAverage}%` : "N/A"}
@@ -674,7 +641,7 @@ export default function TeacherDashboard({ user }: Props) {
 
         <div className="section">
           <h3>Attendance & Tardy</h3>
-          <div className="small">Quick check‑in and weekly summary.</div>
+          <div className="small">Quick check-in and weekly summary.</div>
           <div className="form-row" style={{ marginTop: 8 }}>
             <input
               className="input"
@@ -693,7 +660,7 @@ export default function TeacherDashboard({ user }: Props) {
                 <div key={s.uid} className="roster-row">
                   <div>
                     <div>{s.firstName || "Student"} {s.lastInitial ? `${s.lastInitial}.` : ""}</div>
-                    <div className="meta">{s.email}{s.studentId ? ` · ID: ${s.studentId}` : ""}</div>
+                    <div className="meta">{s.email}{s.studentId ? ` � ID: ${s.studentId}` : ""}</div>
                   </div>
                   <select
                     className="select"
@@ -726,7 +693,7 @@ export default function TeacherDashboard({ user }: Props) {
                         <span className="attend-badge tardy">T: {row.tardy || 0}</span>
                         <span className="attend-badge absent">A: {row.absent || 0}</span>
                         {(row.excused || 0) > 0 && <span className="attend-badge excused">E: {row.excused}</span>}
-                        {(row.absent || 0) >= 2 && <span style={{ fontSize: "0.75rem", color: "#c02020", fontWeight: 600 }}>⚑ Attendance concern</span>}
+                        {(row.absent || 0) >= 2 && <span style={{ fontSize: "0.75rem", color: "#c02020", fontWeight: 600 }}>? Attendance concern</span>}
                       </div>
                     </div>
                   </li>
@@ -735,47 +702,6 @@ export default function TeacherDashboard({ user }: Props) {
             </div>
           )}
         </div>
-
-        {selectedClassId && activeTerm && (() => {
-          const selectedClassObj = classes.find((c) => c.id === selectedClassId);
-          const students = selectedClassObj?.students
-            ? Object.values(selectedClassObj.students).sort((a, b) =>
-                (a.firstName || a.email || "").localeCompare(b.firstName || b.email || "")
-              )
-            : [];
-          if (students.length === 0) return null;
-
-          return (
-            <div className="section">
-              <h3>Report Comments — {activeTerm.termLabel}</h3>
-              <p className="muted">Write a remark for each student. These appear on the published report card.</p>
-              {students.map((s) => (
-                <div key={s.uid} className="form-row" style={{ marginBottom: 8 }}>
-                  <span style={{ minWidth: 160, fontSize: 13 }}>
-                    {s.firstName || ""} {s.lastInitial || ""} {s.studentId ? `(${s.studentId})` : ""}
-                  </span>
-                  <input
-                    className="input"
-                    style={{ flex: 1 }}
-                    placeholder="Write a remark..."
-                    value={reportComments[s.uid] || ""}
-                    onChange={(e) =>
-                      setReportComments((prev) => ({ ...prev, [s.uid]: e.target.value }))
-                    }
-                  />
-                </div>
-              ))}
-              <button
-                className="btn btn-primary"
-                style={{ marginTop: 8 }}
-                onClick={handleSaveComments}
-                disabled={commentsSaving}
-              >
-                {commentsSaving ? "Saving..." : "Save Comments"}
-              </button>
-            </div>
-          );
-        })()}
 
       </div>
     </div>

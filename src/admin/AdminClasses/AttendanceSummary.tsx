@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ref, get } from "firebase/database";
-import { db } from "../../firebase";
+import { db } from "@/firebase";
 import { addToast } from "@/shared/toastService";
 import { getRecentDates } from "@/shared/utils/dateUtils";
 import type { ClassRecord, RosterStudent, AttendanceRow } from "./index";

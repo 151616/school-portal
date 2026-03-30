@@ -1,4 +1,4 @@
-import type { ReportCard } from "./types";
+import type { ReportCard } from "@/types";
 
 interface Props {
   reportCard: ReportCard;

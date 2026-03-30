@@ -3,7 +3,7 @@ import { ref, onValue, get, set } from "firebase/database";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/firebase";
 import { addToast } from "@/shared/toastService";
-import ReportCardView from "../ReportCardView";
+import ReportCardView from "@/reportCards/ReportCardView";
 import type { AcademicConfig, ReportCard, PublishReportCardsData, PublishReportCardsResult } from "@/types";
 
 interface ClassRecord {

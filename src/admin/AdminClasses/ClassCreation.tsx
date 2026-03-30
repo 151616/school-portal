@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { ref, set, get } from "firebase/database";
-import { db } from "../../firebase";
+import { db } from "@/firebase";
 import { addToast } from "@/shared/toastService";
 import { parseCSV, downloadCSV } from "@/shared/utils/csvUtils";
 import { formatTeacherLabel } from "@/shared/utils/formatters";

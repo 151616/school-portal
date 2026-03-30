@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { onValue, ref } from "firebase/database";
-import { db } from "./firebase";
+import { db } from "@/firebase";
 import { addToast } from "@/shared/toastService";
 import type { User as FirebaseUser } from "firebase/auth";
-import type { User, Assignment, ReportCard } from "./types";
-import ReportCardView from "./ReportCardView";
-import ReportCardTrend from "@/shared/components/ReportCardTrend";
+import type { User, Assignment, ReportCard } from "@/types";
+import ReportCardView from "@/reportCards/ReportCardView";
+import ReportCardTrend from "@/reportCards/components/ReportCardTrend";
 import { letterGrade } from "@/shared/utils/gradeUtils";
 import { formatUserName } from "@/shared/utils/formatters";
 import { useAcademicConfig } from "@/shared/hooks/useAcademicConfig";

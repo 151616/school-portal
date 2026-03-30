@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { User as FirebaseUser } from "firebase/auth";
-import type { UserRole } from "./types";
-import MessagingPanel from "./MessagingPanel";
+import type { UserRole } from "@/types";
+import MessagingPanel from "./messaging/MessagingPanel";
 import NotificationsMenu from "./NotificationsMenu";
 import { LogoutIcon, SettingsIcon } from "@/shared/icons";
 

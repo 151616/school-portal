@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ref, set } from "firebase/database";
-import { db } from "../../firebase";
+import { db } from "@/firebase";
 import { addToast } from "@/shared/toastService";
 import { formatClassLabel } from "@/shared/utils/formatters";
 import { logAudit } from "@/shared/utils/auditUtils";

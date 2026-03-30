@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { auth, db, functions } from "./firebase";
+import { auth, db, functions } from "@/firebase";
 import {
   createUserWithEmailAndPassword,
   deleteUser,
@@ -12,7 +12,7 @@ import Toasts from "@/shared/components/Toasts";
 import { addToast } from "@/shared/toastService";
 import { CheckIcon } from "@/shared/icons";
 import { ref, get } from "firebase/database";
-import type { Invite, AssignRoleData, AssignRoleResult } from "./types";
+import type { Invite, AssignRoleData, AssignRoleResult } from "@/types";
 
 export default function Signup() {
   const [searchParams] = useSearchParams();

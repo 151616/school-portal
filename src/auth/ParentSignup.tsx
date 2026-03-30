@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth, functions } from "./firebase";
+import { auth, functions } from "@/firebase";
 import {
   createUserWithEmailAndPassword,
   deleteUser,
@@ -10,7 +10,7 @@ import { httpsCallable } from "firebase/functions";
 import Toasts from "@/shared/components/Toasts";
 import { addToast } from "@/shared/toastService";
 import { CheckIcon } from "@/shared/icons";
-import type { ClaimParentCodeData, ClaimParentCodeResult } from "./types";
+import type { ClaimParentCodeData, ClaimParentCodeResult } from "@/types";
 
 export default function ParentSignup() {
   const navigate = useNavigate();

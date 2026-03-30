@@ -3,23 +3,23 @@ import { Outlet, Route, Routes, useOutletContext } from "react-router-dom";
 import { onAuthStateChanged, sendEmailVerification, signOut } from "firebase/auth";
 import type { User as FirebaseUser } from "firebase/auth";
 import { onValue, ref } from "firebase/database";
-import { auth, db } from "./firebase";
-import type { UserRole } from "./types";
+import { auth, db } from "@/firebase";
+import type { UserRole } from "@/types";
 
 import AppHeader from "./AppHeader";
 import Toasts from "@/shared/components/Toasts";
 import { LogoutIcon } from "@/shared/icons";
 import { addToast } from "@/shared/toastService";
 
-const Login = lazy(() => import("./Login"));
-const Signup = lazy(() => import("./Signup"));
-const TeacherDashboard = lazy(() => import("./TeacherDashboard"));
-const StudentDashboard = lazy(() => import("./StudentDashboard"));
-const AdminDashboard = lazy(() => import("./AdminDashboard"));
+const Login = lazy(() => import("@/auth/Login"));
+const Signup = lazy(() => import("@/auth/Signup"));
+const TeacherDashboard = lazy(() => import("./teacher/TeacherDashboard"));
+const StudentDashboard = lazy(() => import("./student/StudentDashboard"));
+const AdminDashboard = lazy(() => import("./admin/AdminDashboard"));
 const Settings = lazy(() => import("./Settings"));
 const PrivacyPolicy = lazy(() => import("./PrivacyPolicy"));
-const ParentSignup = lazy(() => import("./ParentSignup"));
-const ParentDashboard = lazy(() => import("./ParentDashboard"));
+const ParentSignup = lazy(() => import("@/auth/ParentSignup"));
+const ParentDashboard = lazy(() => import("./parent/ParentDashboard"));
 
 function RouteFallback() {
   return <div className="app-container">Loading...</div>;

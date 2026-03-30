@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { signInWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { auth } from "./firebase";
+import { auth } from "@/firebase";
 import Toasts from "@/shared/components/Toasts";
 import { addToast } from '@/shared/toastService';
 import { CheckIcon } from '@/shared/icons';
