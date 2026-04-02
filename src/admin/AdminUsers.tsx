@@ -420,7 +420,11 @@ export default function AdminUsers({ users, invites, classes: _classes, mySchool
           (optional).
         </div>
         <div className="form-row" style={{ marginTop: 8 }}>
+          <label className="small" htmlFor="bulk-invite-csv-upload">
+            Upload CSV file
+          </label>
           <input
+            id="bulk-invite-csv-upload"
             className="input"
             type="file"
             accept=".csv"

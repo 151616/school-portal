@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { Outlet, Route, Routes, useOutletContext } from "react-router-dom";
 import { onAuthStateChanged, sendEmailVerification, signOut } from "firebase/auth";
 import type { User as FirebaseUser } from "firebase/auth";
-import { onValue, ref } from "firebase/database";
+import { onValue, ref, update } from "firebase/database";
 import { auth, db } from "@/firebase";
 import type { UserRole } from "@/types";
 
@@ -60,18 +60,51 @@ function AuthenticatedLayout() {
 
       setUser(currentUser);
       setEmailVerified(!!currentUser.emailVerified);
+      console.log("Logged in user UID:", currentUser.uid);
 
       const userRef = ref(db, `Users/${currentUser.uid}`);
       unsubscribeDB = onValue(
         userRef,
         (snapshot) => {
           if (!snapshot.exists()) {
-            console.error("No user data found in DB");
-            setRole(null);
-          } else {
-            const data = snapshot.val();
-            setRole((data.role as UserRole) || null);
+            console.warn("No user data found in DB; falling back to auth custom claims");
+            (async () => {
+              try {
+                const tokenResult = await currentUser.getIdTokenResult(true);
+                const roleClaimRaw =
+                  tokenResult.claims.role ||
+                  (tokenResult.claims.admin ? "admin" : undefined) ||
+                  (tokenResult.claims.teacher ? "teacher" : undefined) ||
+                  (tokenResult.claims.student ? "student" : undefined) ||
+                  (tokenResult.claims.parent ? "parent" : undefined);
+                const roleClaim =
+                  typeof roleClaimRaw === "string"
+                    ? (roleClaimRaw.trim().toLowerCase() as UserRole)
+                    : null;
+
+                if (roleClaim && ["admin", "teacher", "student", "parent"].includes(roleClaim)) {
+                  setRole(roleClaim);
+                  await update(ref(db, `Users/${currentUser.uid}`), {
+                    email: currentUser.email || "",
+                    role: roleClaim,
+                  });
+                  console.log("Updated DB role from custom claims:", roleClaim);
+                } else {
+                  setRole(null);
+                }
+              } catch (authErr) {
+                console.warn("Failed to read auth custom claims:", authErr);
+                setRole(null);
+              } finally {
+                setLoading(false);
+              }
+            })();
+            return;
           }
+
+          const data = snapshot.val();
+          setRole((data.role as UserRole) || null);
+          console.log("User data from DB:", data);
           setLoading(false);
         },
         (error) => {

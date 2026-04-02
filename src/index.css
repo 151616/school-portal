@@ -1,13 +1,13 @@
 :root {
-  --bg: #f7f2e9; /* warm parchment */
+  --bg: #f7f2e9;
   --bg-accent: #efe4d2;
-  --panel: #fffaf2; /* card surface */
+  --panel: #fffaf2;
   --panel-strong: #ffffff;
-  --text: #2a241d; /* warm charcoal */
+  --text: #2a241d; 
   --muted: #6f6457;
-  --primary: #3a2f24; /* espresso */
+  --primary: #845e3c; 
   --primary-contrast: #fff7ec;
-  --accent: #c99a6b; /* warm caramel */
+  --accent: #c99a6b;
   --success: #d7ead5;
   --danger: #f3d2cf;
   --info: #e9f1ff;
@@ -114,6 +114,7 @@ body {
   border: 1px solid rgba(73, 54, 34, 0.1);
   background: color-mix(in srgb, var(--panel) 88%, rgba(255, 255, 255, 0.7) 12%);
   box-shadow: 0 16px 34px rgba(45, 36, 22, 0.08);
+  -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
 }
 .app-brand-block {
@@ -329,7 +330,7 @@ body {
 }
 .tab-btn:focus {
   outline: none;
-  border-bottom-color: color-mix(in srgb, var(--accent) 70%, #fff 30%);
+  border-bottom-color: #d6b08a;
 }
 
 .section { margin-top: 24px; }
@@ -764,6 +765,7 @@ body {
   padding: 2px 6px;
   border-radius: 4px;
   cursor: pointer;
+  -webkit-user-select: all;
   user-select: all;
 }
 

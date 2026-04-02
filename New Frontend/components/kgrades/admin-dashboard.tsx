@@ -158,7 +158,11 @@ export function AdminDashboard() {
                   </td>
                   <td className="px-5 py-3 text-muted-foreground text-sm">{u.joined}</td>
                   <td className="px-5 py-3">
-                    <button className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground">
+                    <button
+                      className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+                      aria-label="More actions"
+                      title="More actions"
+                    >
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
                   </td>
@@ -184,7 +188,11 @@ export function AdminDashboard() {
                   <td className="px-5 py-3 text-muted-foreground">{c.grade}</td>
                   <td className="px-5 py-3 text-muted-foreground">{c.term}</td>
                   <td className="px-5 py-3">
-                    <button className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground">
+                    <button
+                      className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+                      aria-label="More actions"
+                      title="More actions"
+                    >
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
                   </td>
@@ -201,22 +209,28 @@ export function AdminDashboard() {
           <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-foreground">Invite New User</h2>
-              <button onClick={() => setShowInviteModal(false)} className="p-1 rounded hover:bg-secondary text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => setShowInviteModal(false)}
+                className="p-1 rounded hover:bg-secondary text-muted-foreground"
+                aria-label="Close invite new user modal"
+                title="Close invite new user modal"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Full Name</label>
-                <input className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" placeholder="e.g. Jane Smith" />
+                <label htmlFor="invite-full-name" className="text-xs font-medium text-muted-foreground block mb-1.5">Full Name</label>
+                <input id="invite-full-name" className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" placeholder="e.g. Jane Smith" />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Email Address</label>
-                <input className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" placeholder="user@kgrades.edu" />
+                <label htmlFor="invite-email-address" className="text-xs font-medium text-muted-foreground block mb-1.5">Email Address</label>
+                <input id="invite-email-address" className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" placeholder="user@kgrades.edu" />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Role</label>
-                <select className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                <label htmlFor="invite-role" className="text-xs font-medium text-muted-foreground block mb-1.5">Role</label>
+                <select id="invite-role" className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
                   <option>Teacher</option>
                   <option>Student</option>
                   <option>Parent</option>
@@ -246,18 +260,24 @@ export function AdminDashboard() {
           <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-foreground">Create New Class</h2>
-              <button onClick={() => setShowClassModal(false)} className="p-1 rounded hover:bg-secondary text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => setShowClassModal(false)}
+                className="p-1 rounded hover:bg-secondary text-muted-foreground"
+                aria-label="Close create new class modal"
+                title="Close create new class modal"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Class Name</label>
-                <input className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" placeholder="e.g. AP Chemistry" />
+                <label htmlFor="new-class-name" className="text-xs font-medium text-muted-foreground block mb-1.5">Class Name</label>
+                <input id="new-class-name" className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" placeholder="e.g. AP Chemistry" />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Assign Teacher</label>
-                <select className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                <label htmlFor="new-class-teacher" className="text-xs font-medium text-muted-foreground block mb-1.5">Assign Teacher</label>
+                <select id="new-class-teacher" className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
                   <option>James Carter</option>
                   <option>Priya Sharma</option>
                   <option>Clara Roth</option>
@@ -265,14 +285,14 @@ export function AdminDashboard() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1.5">Grade Level</label>
-                  <select className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                  <label htmlFor="new-class-grade-level" className="text-xs font-medium text-muted-foreground block mb-1.5">Grade Level</label>
+                  <select id="new-class-grade-level" className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
                     {["9", "10", "11", "12"].map(g => <option key={g}>Grade {g}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1.5">Max Students</label>
-                  <input type="number" defaultValue={30} className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                  <label htmlFor="new-class-max-students" className="text-xs font-medium text-muted-foreground block mb-1.5">Max Students</label>
+                  <input id="new-class-max-students" type="number" defaultValue={30} className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
