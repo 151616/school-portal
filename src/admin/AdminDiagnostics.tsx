@@ -19,6 +19,12 @@ interface DiagnosticsState {
 
 interface AdminDiagnosticsProps {
   mySchoolId: string | null;
+  totalUsers: number;
+  totalStudents: number;
+  totalTeachers: number;
+  totalAdmins: number;
+  pendingInvites: number;
+  classCount: number;
 }
 
 const initialDiagnostics: DiagnosticsState = {
@@ -34,7 +40,7 @@ const initialDiagnostics: DiagnosticsState = {
   note: "",
 };
 
-export default function AdminDiagnostics({ mySchoolId: _mySchoolId }: AdminDiagnosticsProps) {
+export default function AdminDiagnostics({ mySchoolId: _mySchoolId, totalUsers, totalStudents, totalTeachers, totalAdmins, pendingInvites, classCount }: AdminDiagnosticsProps) {
   const [diagnostics, setDiagnostics] = useState<DiagnosticsState>(initialDiagnostics);
 
   const callCreateInvite = async (payload: Record<string, unknown>) => {
@@ -166,6 +172,43 @@ export default function AdminDiagnostics({ mySchoolId: _mySchoolId }: AdminDiagn
 
   return (
     <>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12, marginTop: 16 }}>
+        <div className="card" style={{ padding: 12 }}>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>Total users</div>
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{totalUsers}</div>
+        </div>
+        <div className="card" style={{ padding: 12 }}>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>Active invites</div>
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{pendingInvites}</div>
+        </div>
+        <div className="card" style={{ padding: 12 }}>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>Class count</div>
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{classCount}</div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginTop: 16,
+          padding: 12,
+          borderRadius: 12,
+          background: "var(--panel-strong)",
+          border: "1px solid rgba(73,54,34,0.08)",
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Role distribution</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ flex: (totalStudents / Math.max(totalUsers, 1)).toFixed(2), minWidth: 0, height: 12, background: "var(--info)", borderRadius: 999 }} />
+          <div style={{ flex: (totalTeachers / Math.max(totalUsers, 1)).toFixed(2), minWidth: 0, height: 12, background: "var(--success)", borderRadius: 999 }} />
+          <div style={{ flex: (totalAdmins / Math.max(totalUsers, 1)).toFixed(2), minWidth: 0, height: 12, background: "var(--primary)", borderRadius: 999 }} />
+        </div>
+        <div style={{ marginTop: 8, display: "flex", gap: 12, fontSize: 11 }}>
+          <span>Students: {totalStudents}</span>
+          <span>Teachers: {totalTeachers}</span>
+          <span>Admins: {totalAdmins}</span>
+        </div>
+      </div>
+
       {diagnostics && diagnostics.note && (
         <div
           style={{

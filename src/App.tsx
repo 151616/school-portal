@@ -1,12 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Outlet, Route, Routes, useOutletContext } from "react-router-dom";
-import { onAuthStateChanged, sendEmailVerification, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import type { User as FirebaseUser } from "firebase/auth";
 import { onValue, ref, update } from "firebase/database";
 import { auth, db } from "@/firebase";
 import type { UserRole } from "@/types";
 
-import AppHeader from "./AppHeader";
+import AppSidebar from "./AppSidebar";
 import Toasts from "@/shared/components/Toasts";
 import { LogoutIcon } from "@/shared/icons";
 import { addToast } from "@/shared/toastService";
@@ -20,27 +20,75 @@ const Settings = lazy(() => import("./Settings"));
 const PrivacyPolicy = lazy(() => import("./PrivacyPolicy"));
 const ParentSignup = lazy(() => import("@/auth/ParentSignup"));
 const ParentDashboard = lazy(() => import("./parent/ParentDashboard"));
+const MessagingPanel = lazy(() => import("./messaging/MessagingPanel"));
 
 function RouteFallback() {
   return <div className="app-container">Loading...</div>;
 }
 
+const roleNavItems: Record<string, { id: string; label: string }[]> = {
+  teacher: [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "messages", label: "Messages" },
+  ],
+  student: [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "messages", label: "Messages" },
+  ],
+  parent: [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "messages", label: "Messages" },
+  ],
+};
+
+const rolePageTitles: Record<string, Record<string, string>> = {
+  teacher: { dashboard: "Teacher Workspace", messages: "Messages", settings: "Settings" },
+  student: { dashboard: "Student Portal", messages: "Messages", settings: "Settings" },
+  parent: { dashboard: "Parent Portal", messages: "Messages", settings: "Settings" },
+};
+
+function SidebarDashboard({ user, role }: { user: FirebaseUser; role: UserRole }) {
+  const [activePage, setActivePage] = useState("dashboard");
+
+  const navItems = roleNavItems[role] || [{ id: "dashboard", label: "Dashboard" }];
+  const titles = rolePageTitles[role] || { dashboard: "Dashboard" };
+
+  return (
+    <AppSidebar
+      user={user}
+      role={role}
+      navItems={navItems}
+      activePage={activePage}
+      onPageChange={setActivePage}
+      pageTitle={titles[activePage] || "Dashboard"}
+    >
+      <div className="card" style={{ padding: 20 }}>
+        {activePage === "dashboard" && (
+          <>
+            {role === "teacher" && <TeacherDashboard user={user} />}
+            {role === "student" && <StudentDashboard user={user} />}
+            {role === "parent" && <ParentDashboard user={user} />}
+          </>
+        )}
+        {activePage === "messages" && <MessagingPanel currentUser={user} currentRole={role} />}
+        {activePage === "settings" && <Settings />}
+      </div>
+    </AppSidebar>
+  );
+}
+
 function RoleDashboardRoute() {
   const { user, role } = useOutletContext<{ user: FirebaseUser; role: UserRole }>();
 
-  if (role === "teacher") return <TeacherDashboard user={user} />;
-  if (role === "student") return <StudentDashboard user={user} />;
   if (role === "admin") return <AdminDashboard user={user} />;
-  if (role === "parent") return <ParentDashboard user={user} />;
 
-  return null;
+  return <SidebarDashboard user={user} role={role} />;
 }
 
 function AuthenticatedLayout() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [emailVerified, setEmailVerified] = useState<boolean>(true);
 
   useEffect(() => {
     let unsubscribeDB: (() => void) | null = null;
@@ -59,7 +107,6 @@ function AuthenticatedLayout() {
       }
 
       setUser(currentUser);
-      setEmailVerified(!!currentUser.emailVerified);
       console.log("Logged in user UID:", currentUser.uid);
 
       const userRef = ref(db, `Users/${currentUser.uid}`);
@@ -132,35 +179,6 @@ function AuthenticatedLayout() {
     }
   };
 
-  const resendVerification = async (): Promise<void> => {
-    if (!auth.currentUser) return;
-    try {
-      await sendEmailVerification(auth.currentUser);
-      addToast("info", "Verification email sent.");
-    } catch (error) {
-      console.error("Verification email error:", error);
-      addToast("error", "Unable to send a verification email.");
-    }
-  };
-
-  const refreshVerification = async (): Promise<void> => {
-    if (!auth.currentUser) return;
-
-    try {
-      await auth.currentUser.reload();
-      const verified = !!auth.currentUser.emailVerified;
-      setEmailVerified(verified);
-
-      if (!verified) {
-        await sendEmailVerification(auth.currentUser);
-        addToast("info", "Verification not detected yet. We resent the email.");
-      }
-    } catch (error) {
-      console.error("Verification refresh error:", error);
-      addToast("error", "Unable to refresh verification. Try again.");
-    }
-  };
-
   if (!user) return <Login />;
 
   if (loading) {
@@ -195,32 +213,10 @@ function AuthenticatedLayout() {
   }
 
   return (
-    <div className="app-shell">
+    <>
       <Toasts />
-      <AppHeader currentUser={user} currentRole={role} onLogout={handleLogout} />
-
-      <main className="app-main">
-        {!emailVerified && (
-          <div className="app-container">
-            <div className="card app-banner-card">
-              <div className="small">
-                Your email is not verified. Please check your inbox for a verification link.
-              </div>
-              <div className="form-row" style={{ marginTop: 8 }}>
-                <button className="btn btn-ghost" onClick={resendVerification}>
-                  Resend Email
-                </button>
-                <button className="btn btn-ghost" onClick={refreshVerification}>
-                  I Verified
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <Outlet context={{ user, role }} />
-      </main>
-    </div>
+      <Outlet context={{ user, role }} />
+    </>
   );
 }
 

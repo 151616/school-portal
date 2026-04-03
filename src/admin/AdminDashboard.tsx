@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { ref, onValue } from "firebase/database";
 import { signOut } from "firebase/auth";
 import type { User } from "firebase/auth";
@@ -8,6 +8,11 @@ import AdminClasses from "./AdminClasses";
 import AdminDiagnostics from "./AdminDiagnostics";
 import AdminCalendar from "./AdminCalendar";
 import AdminReportCards from "./AdminReportCards";
+import NotificationsMenu from "../NotificationsMenu";
+import MessagingPanel from "../messaging/MessagingPanel";
+import Settings from "../Settings";
+import { LogoutIcon, SettingsIcon } from "@/shared/icons";
+import SidebarNav from "@/shared/components/SidebarNav";
 
 // ---- types ----
 
@@ -40,11 +45,24 @@ interface ClassRecord {
   [key: string]: unknown;
 }
 
-type ActivePage = "users" | "classes" | "calendar" | "reportcards" | "diagnostics" | "messages";
+type ActivePage = "users" | "classes" | "calendar" | "reportcards" | "diagnostics" | "messages" | "settings";
 
 interface AdminDashboardProps {
   user: User;
 }
+
+const logo = "/logo.png";
+
+// ---- page titles ----
+const pageTitles: Record<ActivePage, string> = {
+  users: "Users",
+  classes: "Classes",
+  calendar: "Academic Calendar",
+  reportcards: "Report Cards",
+  diagnostics: "Diagnostics",
+  messages: "Messages",
+  settings: "Settings",
+};
 
 // ---- component ----
 
@@ -54,6 +72,7 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
   const [classes, setClasses] = useState<ClassRecord[]>([]);
   const [mySchoolId, setMySchoolId] = useState<string | null>(null);
   const [activePage, setActivePage] = useState<ActivePage>("users");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const totalUsers = users.length;
   const totalStudents = users.filter((u) => (u.role || "").toLowerCase() === "student").length;
@@ -106,178 +125,104 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
     }
   };
 
-  const navItems: { id: ActivePage; label: string }[] = [
+  const navItems: { id: string; label: string; icon?: React.ReactNode }[] = [
     { id: "users", label: "Users" },
     { id: "classes", label: "Classes" },
     { id: "calendar", label: "Academic Calendar" },
     { id: "reportcards", label: "Report Cards" },
     { id: "messages", label: "Messages" },
     { id: "diagnostics", label: "Diagnostics" },
+    { id: "settings", label: "Settings", icon: <SettingsIcon className="icon" /> },
   ];
 
   return (
-    <div className="app-shell" style={{ minHeight: "100vh", display: "flex", gap: 16 }}>
-      <aside
-        style={{
-          width: 240,
-          minWidth: 240,
-          background: "var(--panel)",
-          borderRight: "1px solid rgba(73,54,34,0.08)",
-          boxShadow: "0px 0px 25px rgba(0,0,0,0.04)",
-          padding: 16,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-        }}
-      >
-        <div>
-          <div style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: 12 }}>KGrades</div>
-          <div style={{ fontSize: "0.95rem", color: "var(--muted)", marginBottom: 24 }}>
-            Admin ({displayName})
+    <div className="admin-layout">
+      {/* Sidebar overlay for mobile */}
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`admin-sidebar${sidebarOpen ? " open" : ""}`}>
+        <div className="sidebar-top">
+          <div className="sidebar-brand">
+            <img src={logo} alt="KGrades Logo" className="app-brand-logo" />
+            <span style={{ fontSize: "1.25rem", fontWeight: 700 }}>KGrades</span>
           </div>
-          <nav style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActivePage(item.id)}
-                style={{
-                  textAlign: "left",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "10px 12px",
-                  cursor: "pointer",
-                  background: activePage === item.id ? "var(--primary)" : "transparent",
-                  color: activePage === item.id ? "var(--primary-contrast)" : "var(--text)",
-                  fontWeight: activePage === item.id ? 700 : 500,
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </nav>
+
+          <SidebarNav
+            items={navItems}
+            activeId={activePage}
+            onSelect={(id) => {
+              setActivePage(id as ActivePage);
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
+          />
         </div>
 
-        <div style={{ marginTop: 20, borderTop: "1px solid rgba(73,54,34,0.12)", paddingTop: 12 }}>
+        <div className="sidebar-bottom">
+          <div className="sidebar-user-info">
+            <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Admin ({displayName})</div>
+            <div style={{ fontSize: "0.82rem", color: "var(--muted)", wordBreak: "break-all" }}>
+              {user?.email || ""}
+            </div>
+          </div>
           <button
             onClick={handleLogout}
-            style={{
-              width: "100%",
-              border: "none",
-              borderRadius: 8,
-              padding: "10px 12px",
-              cursor: "pointer",
-              background: "var(--danger)",
-              color: "var(--primary-contrast)",
-              fontWeight: 600,
-            }}
+            className="sidebar-logout-btn"
+            title="Logout"
           >
-            Logout
+            <LogoutIcon className="icon" />
           </button>
         </div>
       </aside>
 
-      <main className="app-container" style={{ flex: 1, padding: 16 }}>
-        <div className="card" style={{ padding: 20 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-            <h2 style={{ margin: 0 }}>Admin Dashboard</h2>
-            <button
-              style={{
-                border: "none",
-                borderRadius: 8,
-                padding: "8px 12px",
-                background: "var(--info)",
-                color: "var(--text)",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Notifications {pendingInvites > 0 ? `(${pendingInvites})` : ""}
-            </button>
+      {/* Sidebar toggle tab */}
+      <button
+        className={`sidebar-toggle-tab${sidebarOpen ? " open" : ""}`}
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        aria-label="Toggle sidebar"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+          <path d={sidebarOpen ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {/* Main content */}
+      <div className={`admin-main${sidebarOpen ? " sidebar-open" : ""}`}>
+        <div className="admin-topbar">
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <h2 style={{ margin: 0 }}>{pageTitles[activePage]}</h2>
           </div>
-
-          <div className="muted">Manage users and invitations. Create invites, copy links, and remove users safely.</div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12, marginTop: 16 }}>
-            <div className="card" style={{ padding: 12 }}>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>Total users</div>
-              <div style={{ fontSize: 24, fontWeight: 700 }}>{totalUsers}</div>
-            </div>
-            <div className="card" style={{ padding: 12 }}>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>Active invites</div>
-              <div style={{ fontSize: 24, fontWeight: 700 }}>{pendingInvites}</div>
-            </div>
-            <div className="card" style={{ padding: 12 }}>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>Class count</div>
-              <div style={{ fontSize: 24, fontWeight: 700 }}>{classCount}</div>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <NotificationsMenu currentUser={user} />
           </div>
-
-          <div
-            style={{
-              marginTop: 16,
-              padding: 12,
-              borderRadius: 12,
-              background: "var(--panel-strong)",
-              border: "1px solid rgba(73,54,34,0.08)",
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Role distribution</div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <div
-                style={{
-                  flex: (totalStudents / Math.max(totalUsers, 1)).toFixed(2),
-                  minWidth: 0,
-                  height: 12,
-                  background: "var(--info)",
-                  borderRadius: 999,
-                }}
-              />
-              <div
-                style={{
-                  flex: (totalTeachers / Math.max(totalUsers, 1)).toFixed(2),
-                  minWidth: 0,
-                  height: 12,
-                  background: "var(--success)",
-                  borderRadius: 999,
-                }}
-              />
-              <div
-                style={{
-                  flex: (totalAdmins / Math.max(totalUsers, 1)).toFixed(2),
-                  minWidth: 0,
-                  height: 12,
-                  background: "var(--primary)",
-                  borderRadius: 999,
-                }}
-              />
-            </div>
-            <div style={{ marginTop: 8, display: "flex", gap: 12, fontSize: 11 }}>
-              <span>Students: {totalStudents}</span>
-              <span>Teachers: {totalTeachers}</span>
-              <span>Admins: {totalAdmins}</span>
-            </div>
-          </div>
-
-          {activePage === "users" && <AdminUsers users={users} invites={invites} classes={classes} mySchoolId={mySchoolId} />}
-          {activePage === "classes" && <AdminClasses users={users} classes={classes} mySchoolId={mySchoolId} />}
-          {activePage === "calendar" && <AdminCalendar mySchoolId={mySchoolId} />}
-          {activePage === "reportcards" && <AdminReportCards classes={classes} mySchoolId={mySchoolId} />}
-          {activePage === "messages" && (
-            <div style={{ padding: 16 }}>
-              <h3>Messages</h3>
-              <p>No message panel is implemented yet; this will show notifications and chat threads.</p>
-            </div>
-          )}
-          {activePage === "diagnostics" && <AdminDiagnostics mySchoolId={mySchoolId} />}
         </div>
-      </main>
+
+        <div className="admin-content">
+          <div className="card" style={{ padding: 20 }}>
+            {activePage === "users" && <AdminUsers users={users} invites={invites} classes={classes} mySchoolId={mySchoolId} />}
+            {activePage === "classes" && <AdminClasses users={users} classes={classes} mySchoolId={mySchoolId} />}
+            {activePage === "calendar" && <AdminCalendar mySchoolId={mySchoolId} />}
+            {activePage === "reportcards" && <AdminReportCards classes={classes} mySchoolId={mySchoolId} />}
+            {activePage === "messages" && (
+              <MessagingPanel currentUser={user} currentRole="admin" />
+            )}
+            {activePage === "diagnostics" && (
+              <AdminDiagnostics
+                mySchoolId={mySchoolId}
+                totalUsers={totalUsers}
+                totalStudents={totalStudents}
+                totalTeachers={totalTeachers}
+                totalAdmins={totalAdmins}
+                pendingInvites={pendingInvites}
+                classCount={classCount}
+              />
+            )}
+            {activePage === "settings" && <Settings />}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
