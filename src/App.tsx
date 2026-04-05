@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Outlet, Route, Routes, useOutletContext } from "react-router-dom";
+import { Outlet, Route, Routes, useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import type { User as FirebaseUser } from "firebase/auth";
-import { onValue, ref, update } from "firebase/database";
+import { get, onValue, ref, update } from "firebase/database";
 import { auth, db } from "@/firebase";
-import type { UserRole } from "@/types";
+import type { UserRole, SchoolClass } from "@/types";
 
 import AppSidebar from "./AppSidebar";
 import Toasts from "@/shared/components/Toasts";
@@ -47,11 +47,144 @@ const rolePageTitles: Record<string, Record<string, string>> = {
   parent: { dashboard: "Parent Portal", messages: "Messages", settings: "Settings" },
 };
 
+interface ClassWithId extends SchoolClass {
+  id: string;
+}
+
+function SidebarClassPicker({
+  classes,
+  selectedClassId,
+  onSelectClass,
+  loading,
+}: {
+  classes: ClassWithId[];
+  selectedClassId: string;
+  onSelectClass: (id: string) => void;
+  loading: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const selectedClass = classes.find((c) => c.id === selectedClassId);
+  const label = loading ? "Loading..." : selectedClass ? (selectedClass.name || selectedClass.id) : "Classes";
+
+  return (
+    <div className="sidebar-class-picker">
+      <button
+        className="sidebar-class-toggle"
+        onClick={() => setOpen(!open)}
+        type="button"
+      >
+        <span>{label}</span>
+        <svg
+          className={`sidebar-class-arrow${open ? " open" : ""}`}
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden
+        >
+          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <div className={`sidebar-class-list${open ? " open" : ""}`}>
+        <div className="sidebar-class-list-inner">
+          {classes.map((c) => (
+            <button
+              key={c.id}
+              className={`sidebar-class-item${c.id === selectedClassId ? " active" : ""}`}
+              onClick={() => {
+                onSelectClass(c.id);
+                setOpen(false);
+              }}
+              type="button"
+            >
+              {c.name || c.id}
+            </button>
+          ))}
+          {!loading && classes.length === 0 && (
+            <div className="sidebar-class-item" style={{ color: "var(--muted)", cursor: "default" }}>
+              No classes
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SidebarDashboard({ user, role }: { user: FirebaseUser; role: UserRole }) {
-  const [activePage, setActivePage] = useState("dashboard");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activePage =
+    location.pathname === "/messages"
+      ? "messages"
+      : location.pathname === "/settings"
+      ? "settings"
+      : "dashboard";
+  const handlePageChange = (id: string) => {
+    if (id === "messages") navigate("/messages");
+    else if (id === "settings") navigate("/settings");
+    else navigate("/");
+  };
+
+  // Teacher class selection state (lifted from TeacherDashboard)
+  const [teacherClasses, setTeacherClasses] = useState<ClassWithId[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState("");
+  const [classesLoading, setClassesLoading] = useState(false);
+
+  useEffect(() => {
+    if (role !== "teacher" || !user) return;
+    setClassesLoading(true);
+    const teacherClassesRef = ref(db, `teachers/${user.uid}/classes`);
+    const unsubscribe = onValue(
+      teacherClassesRef,
+      async (snapshot) => {
+        try {
+          const classIds: string[] = snapshot.exists() ? Object.keys(snapshot.val()) : [];
+          if (classIds.length === 0) {
+            setTeacherClasses([]);
+            setClassesLoading(false);
+            return;
+          }
+          const classData = await Promise.all(
+            classIds.map(async (id) => {
+              const cSnap = await get(ref(db, `classes/${id}`));
+              return cSnap.exists() ? ({ id, ...cSnap.val() } as ClassWithId) : null;
+            })
+          );
+          setTeacherClasses(classData.filter((c): c is ClassWithId => c !== null));
+        } catch {
+          addToast("error", "Unable to load classes");
+        } finally {
+          setClassesLoading(false);
+        }
+      },
+      () => {
+        addToast("error", "Unable to load classes");
+        setClassesLoading(false);
+      }
+    );
+    return () => unsubscribe();
+  }, [user, role]);
 
   const navItems = roleNavItems[role] || [{ id: "dashboard", label: "Dashboard" }];
   const titles = rolePageTitles[role] || { dashboard: "Dashboard" };
+
+  const sidebarExtra = role === "teacher" ? (
+    <SidebarClassPicker
+      classes={teacherClasses}
+      selectedClassId={selectedClassId}
+      onSelectClass={setSelectedClassId}
+      loading={classesLoading}
+    />
+  ) : undefined;
+
+  const selectedTeacherClass = teacherClasses.find((c) => c.id === selectedClassId);
+  const pageSubtitle =
+    role === "teacher" && activePage === "dashboard" && selectedTeacherClass
+      ? selectedTeacherClass.name || selectedTeacherClass.id
+      : undefined;
 
   return (
     <AppSidebar
@@ -59,20 +192,33 @@ function SidebarDashboard({ user, role }: { user: FirebaseUser; role: UserRole }
       role={role}
       navItems={navItems}
       activePage={activePage}
-      onPageChange={setActivePage}
+      onPageChange={handlePageChange}
       pageTitle={titles[activePage] || "Dashboard"}
+      pageSubtitle={pageSubtitle}
+      sidebarExtra={sidebarExtra}
     >
-      <div className="card" style={{ padding: 20 }}>
-        {activePage === "dashboard" && (
-          <>
-            {role === "teacher" && <TeacherDashboard user={user} />}
-            {role === "student" && <StudentDashboard user={user} />}
-            {role === "parent" && <ParentDashboard user={user} />}
-          </>
-        )}
-        {activePage === "messages" && <MessagingPanel currentUser={user} currentRole={role} />}
-        {activePage === "settings" && <Settings />}
-      </div>
+      {activePage === "messages" ? (
+        <MessagingPanel currentUser={user} currentRole={role} />
+      ) : (
+        <div className="card" style={{ padding: 20 }}>
+          {activePage === "dashboard" && (
+            <>
+              {role === "teacher" && (
+                <TeacherDashboard
+                  user={user}
+                  selectedClassId={selectedClassId}
+                  onSelectClass={setSelectedClassId}
+                  classes={teacherClasses}
+                  classesLoading={classesLoading}
+                />
+              )}
+              {role === "student" && <StudentDashboard user={user} />}
+              {role === "parent" && <ParentDashboard user={user} />}
+            </>
+          )}
+          {activePage === "settings" && <Settings />}
+        </div>
+      )}
     </AppSidebar>
   );
 }
@@ -251,7 +397,8 @@ export default function App() {
         <Route path="/parent-signup" element={<ParentSignup />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route element={<AuthenticatedLayout />}>
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/settings" element={<RoleDashboardRoute />} />
+          <Route path="/messages" element={<RoleDashboardRoute />} />
           <Route path="*" element={<RoleDashboardRoute />} />
         </Route>
       </Routes>

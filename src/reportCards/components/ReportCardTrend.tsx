@@ -1,4 +1,5 @@
 import type { ReportCard } from "@/types";
+import Combobox from "@/shared/components/Combobox";
 
 interface ReportCardTrendProps {
   reportCards: ReportCard[];
@@ -38,8 +39,7 @@ export default function ReportCardTrend({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <strong>Academic Trend</strong>
         <button
-          className="btn btn-ghost"
-          style={{ fontSize: 11, padding: "2px 8px" }}
+          className="btn btn-ghost btn-xs"
           onClick={onToggleAllSessions}
         >
           {showAllSessions ? "Current session only" : "View all sessions"}
@@ -48,19 +48,15 @@ export default function ReportCardTrend({
 
       {subjectNames.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <select
-            className="input"
-            style={{ fontSize: 12 }}
+          <Combobox
+            options={[
+              { value: "", label: "Overall Average" },
+              ...subjectNames.sort().map((name) => ({ value: name, label: name })),
+            ]}
             value={selectedSubject || ""}
-            onChange={(event) => onSelectSubject(event.target.value || null)}
-          >
-            <option value="">Overall Average</option>
-            {subjectNames.sort().map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => onSelectSubject(v || null)}
+            searchable={subjectNames.length > 5}
+          />
         </div>
       )}
 

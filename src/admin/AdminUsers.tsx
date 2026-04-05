@@ -3,6 +3,7 @@ import { ref, onValue, query, orderByChild, limitToLast } from "firebase/databas
 import { httpsCallable } from "firebase/functions";
 import { db, auth, functions } from "@/firebase";
 import { addToast } from "@/shared/toastService";
+import Combobox from "@/shared/components/Combobox";
 import ConfirmModal from "@/shared/components/ConfirmModal";
 import { formatAuditTime } from "@/shared/utils/dateUtils";
 import { parseCSV, downloadCSV } from "@/shared/utils/csvUtils";
@@ -513,15 +514,15 @@ export default function AdminUsers({ users, invites, classes: _classes, mySchool
         <h3>Existing Users</h3>
         <div className="small">You can remove users here. Deleting is permanent.</div>
         <div className="form-row" style={{ marginTop: 8 }}>
-          <select
-            className="select"
+          <Combobox
+            options={[
+              { value: "email", label: "Sort by Email" },
+              { value: "name", label: "Sort by Name" },
+              { value: "studentId", label: "Sort by Student ID" },
+            ]}
             value={userSort}
-            onChange={(e) => setUserSort(e.target.value)}
-          >
-            <option value="email">Sort by Email</option>
-            <option value="name">Sort by Name</option>
-            <option value="studentId">Sort by Student ID</option>
-          </select>
+            onChange={(v) => setUserSort(v)}
+          />
           <button className="btn btn-ghost" onClick={handleExportUsersCSV}>
             Export {userSection}
           </button>

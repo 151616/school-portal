@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { onValue, ref } from "firebase/database";
 import { db } from "@/firebase";
 import { addToast } from "@/shared/toastService";
+import Combobox from "@/shared/components/Combobox";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { User, Assignment, ReportCard } from "@/types";
 import ReportCardView from "@/reportCards/ReportCardView";
@@ -150,8 +151,7 @@ export default function StudentDashboard({ user }: Props) {
                       {assignment.rubric && (
                         <div style={{ marginTop: 4 }}>
                           <button
-                            className="btn btn-ghost"
-                            style={{ padding: "2px 8px", fontSize: "0.82rem" }}
+                            className="btn btn-ghost btn-sm"
                             onClick={() => setOpenRubrics((prev) => ({ ...prev, [key]: !prev[key] }))}
                           >
                             {rubricOpen ? "Hide rubric" : "Show rubric"}
@@ -294,16 +294,18 @@ export default function StudentDashboard({ user }: Props) {
               const termKeys = currentSession ? Object.keys(currentSession.terms) : [];
               return (
                 <div className="form-row" style={{ marginBottom: 16 }}>
-                  <select className="input" value={selectedSession} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedSession(e.target.value)}>
-                    {sessionKeys.map((k) => (
-                      <option key={k} value={k}>{sessions[k]!.label}</option>
-                    ))}
-                  </select>
-                  <select className="input" value={selectedTerm} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedTerm(e.target.value)}>
-                    {termKeys.map((k) => (
-                      <option key={k} value={k}>{currentSession!.terms[k]!.label}</option>
-                    ))}
-                  </select>
+                  <Combobox
+                    options={sessionKeys.map((k) => ({ value: k, label: sessions[k]!.label }))}
+                    value={selectedSession}
+                    onChange={(v) => setSelectedSession(v)}
+                    placeholder="Select Session"
+                  />
+                  <Combobox
+                    options={termKeys.map((k) => ({ value: k, label: currentSession!.terms[k]!.label }))}
+                    value={selectedTerm}
+                    onChange={(v) => setSelectedTerm(v)}
+                    placeholder="Select Term"
+                  />
                 </div>
               );
             })()}

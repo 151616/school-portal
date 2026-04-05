@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ref, set } from "firebase/database";
 import { db } from "@/firebase";
 import { addToast } from "@/shared/toastService";
+import Combobox from "@/shared/components/Combobox";
 import { formatStudentLabel, formatClassLabel, formatTeacherLabel } from "@/shared/utils/formatters";
 import { logAudit } from "@/shared/utils/auditUtils";
 import type { UserRecord, ClassRecord } from "./index";
@@ -625,14 +626,14 @@ export default function EnrollmentManager({
         </div>
 
         <div className="form-row" style={{ marginTop: 8 }}>
-          <select
-            className="select"
+          <Combobox
+            options={[
+              { value: "class", label: "Enroll into one class" },
+              { value: "teacher", label: "Enroll into a teacher's classes" },
+            ]}
             value={multiEnrollMode}
-            onChange={(e) => setMultiEnrollMode(e.target.value)}
-          >
-            <option value="class">Enroll into one class</option>
-            <option value="teacher">Enroll into a teacher's classes</option>
-          </select>
+            onChange={(v) => setMultiEnrollMode(v)}
+          />
 
           {multiEnrollMode === "class" ? (
             <div className="autocomplete">

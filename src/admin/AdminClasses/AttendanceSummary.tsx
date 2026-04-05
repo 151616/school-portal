@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ref, get } from "firebase/database";
 import { db } from "@/firebase";
 import { addToast } from "@/shared/toastService";
+import Combobox from "@/shared/components/Combobox";
 import { getRecentDates } from "@/shared/utils/dateUtils";
 import type { ClassRecord, RosterStudent, AttendanceRow } from "./index";
 
@@ -62,18 +63,16 @@ export default function AttendanceSummary({ classes }: AttendanceSummaryProps) {
       <h3>Attendance Summary</h3>
       <div className="small">Past 7 days per class.</div>
       <div className="form-row" style={{ marginTop: 8 }}>
-        <select
-          className="select"
+        <Combobox
+          options={[
+            { value: "", label: "Select class" },
+            ...classes.map((c) => ({ value: c.id, label: `${c.id} - ${c.name || "Untitled"}` })),
+          ]}
           value={attendanceClassId}
-          onChange={(e) => setAttendanceClassId(e.target.value)}
-        >
-          <option value="">Select class</option>
-          {classes.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.id} - {c.name || "Untitled"}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => setAttendanceClassId(v)}
+          placeholder="Select class"
+          searchable={classes.length > 5}
+        />
       </div>
       {attendanceLoading && (
         <div className="small" style={{ marginTop: 6 }}>Loading attendance...</div>

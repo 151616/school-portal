@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import Combobox from "@/shared/components/Combobox";
 
 type Theme = "system" | "light" | "dark";
 
@@ -65,8 +66,7 @@ export default function Settings() {
     applyTheme(theme);
   }, [theme]);
 
-  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
-    const code = e.target.value;
+  const handleLanguageChange = (code: string): void => {
     setLanguage(code);
     applyLanguage(code);
   };
@@ -111,18 +111,13 @@ export default function Settings() {
             Translate the page using Google Translate.
           </div>
           <div className="form-row" style={{ marginTop: 8 }}>
-            <select
-              className="select"
-              style={{ width: 220 }}
+            <Combobox
+              options={LANGUAGES.map((lang) => ({ value: lang.code, label: lang.label }))}
               value={language}
               onChange={handleLanguageChange}
-            >
-              {LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.label}
-                </option>
-              ))}
-            </select>
+              searchable
+              style={{ width: 220 }}
+            />
           </div>
         </div>
 

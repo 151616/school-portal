@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ref, set } from "firebase/database";
 import { db } from "@/firebase";
 import { addToast } from "@/shared/toastService";
+import Combobox from "@/shared/components/Combobox";
 import { formatClassLabel } from "@/shared/utils/formatters";
 import { logAudit } from "@/shared/utils/auditUtils";
 import type { UserRecord, ClassRecord, RosterStudent } from "./index";
@@ -329,25 +330,18 @@ export default function RosterManager({
                         }))
                       }
                     />
-                    <select
-                      className="select"
+                    <Combobox
+                      options={[
+                        { value: "", label: "Move to..." },
+                        ...schoolScopedClasses
+                          .filter((c) => c.id !== rosterClassId)
+                          .map((c) => ({ value: c.id, label: `${c.id} - ${c.name || "Untitled"}` })),
+                      ]}
                       value={moveTargets[s.uid] || ""}
-                      onChange={(e) =>
-                        setMoveTargets((prev) => ({
-                          ...prev,
-                          [s.uid]: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">Move to...</option>
-      {schoolScopedClasses
-                        .filter((c) => c.id !== rosterClassId)
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.id} - {c.name || "Untitled"}
-                          </option>
-                        ))}
-                    </select>
+                      onChange={(v) => setMoveTargets((prev) => ({ ...prev, [s.uid]: v }))}
+                      placeholder="Move to..."
+                      searchable={schoolScopedClasses.length > 5}
+                    />
                     <button
                       className="btn btn-ghost"
                       onClick={() => handleMoveStudent(rosterClassId, s.uid)}
@@ -377,20 +371,18 @@ export default function RosterManager({
           )}
 
           <div className="form-row" style={{ marginTop: 10 }}>
-            <select
-              className="select"
+            <Combobox
+              options={[
+                { value: "", label: "Move selected to..." },
+                ...schoolScopedClasses
+                  .filter((c) => c.id !== rosterClassId)
+                  .map((c) => ({ value: c.id, label: `${c.id} - ${c.name || "Untitled"}` })),
+              ]}
               value={rosterBulkTarget}
-              onChange={(e) => setRosterBulkTarget(e.target.value)}
-            >
-              <option value="">Move selected to...</option>
-              {schoolScopedClasses
-                .filter((c) => c.id !== rosterClassId)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.id} - {c.name || "Untitled"}
-                  </option>
-                ))}
-            </select>
+              onChange={(v) => setRosterBulkTarget(v)}
+              placeholder="Move selected to..."
+              searchable={schoolScopedClasses.length > 5}
+            />
             <button className="btn btn-ghost" onClick={handleBulkMove}>
               Move Selected
             </button>

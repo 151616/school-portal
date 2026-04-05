@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { ref, set, get } from "firebase/database";
 import { db } from "@/firebase";
 import { addToast } from "@/shared/toastService";
+import Combobox from "@/shared/components/Combobox";
 import { parseCSV, downloadCSV } from "@/shared/utils/csvUtils";
 import { formatTeacherLabel } from "@/shared/utils/formatters";
 import { logAudit } from "@/shared/utils/auditUtils";
@@ -396,18 +397,16 @@ export default function ClassCreation({
         </div>
         <div className="small" style={{ marginTop: 12 }}>Export gradebook by class.</div>
         <div className="form-row" style={{ marginTop: 8 }}>
-          <select
-            className="select"
+          <Combobox
+            options={[
+              { value: "", label: "Select class" },
+              ...classes.map((c) => ({ value: c.id, label: `${c.id} - ${c.name || "Untitled"}` })),
+            ]}
             value={exportClassId}
-            onChange={(e) => setExportClassId(e.target.value)}
-          >
-            <option value="">Select class</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.id} - {c.name || "Untitled"}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setExportClassId(v)}
+            placeholder="Select class"
+            searchable={classes.length > 5}
+          />
           <button className="btn btn-ghost" onClick={handleExportGradebook}>
             Export Gradebook
           </button>

@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { UserRole } from "@/types";
-import MessagingPanel from "./messaging/MessagingPanel";
+import MessagesHeaderButton from "./messaging/MessagesHeaderButton";
 import NotificationsMenu from "./NotificationsMenu";
 import { LogoutIcon, SettingsIcon } from "@/shared/icons";
 
@@ -41,7 +41,7 @@ export default function AppHeader({ currentUser, currentRole, onLogout }: AppHea
             {currentUser?.email || ""}
           </span>
           <NotificationsMenu currentUser={currentUser} />
-          <MessagingPanel currentUser={currentUser} currentRole={currentRole} />
+          <MessagesHeaderButton currentUser={currentUser} />
           <button
             className={`header-menu-button icon-only${isSettings ? " is-active" : ""}`}
             type="button"

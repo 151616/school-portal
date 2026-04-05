@@ -3,10 +3,8 @@ import type React from "react";
 import { get, onValue, push, ref, set, update } from "firebase/database";
 import type { User as FirebaseUser } from "firebase/auth";
 import { db } from "@/firebase";
-import { MessageIcon } from "@/shared/icons";
 import { addToast } from "@/shared/toastService";
 import type { UserRole, User, Thread, Message } from "@/types";
-import { formatRelativeTime } from "@/shared/utils/dateUtils";
 import { roleTargets, normalizeRole, isAllowedRolePair } from "@/shared/utils/roleUtils";
 
 interface MessagingPanelProps {
@@ -15,14 +13,17 @@ interface MessagingPanelProps {
 }
 
 type UserWithUid = User & { uid: string };
-type ThreadWithMeta = Thread & { id: string; displayName: string; unread: boolean };
+type ThreadWithMeta = Thread & {
+  id: string;
+  otherUid: string;
+  displayName: string;
+  initials: string;
+  email: string;
+  unread: boolean;
+};
 type MessageWithId = Message & { id: string };
 
 const threadIdFor = (a: string, b: string): string => [a, b].sort().join("_");
-
-const logMessagingDebug = (label: string, details: unknown): void => {
-  console.debug("[MessagingPanel]", label, details);
-};
 
 const sameParticipantPair = (
   thread: Thread | null,
@@ -30,7 +31,6 @@ const sameParticipantPair = (
   otherUid: string
 ): boolean => {
   if (!thread) return false;
-
   const participants = [thread.userA, thread.userB].filter(Boolean).sort();
   const expected = [currentUid, otherUid].sort();
   return (
@@ -90,12 +90,113 @@ const threadNeedsRepair = (existingThread: Thread, nextThread: Thread): boolean 
   if (typeof existingThread.updatedAt !== "number") return true;
   if (typeof existingThread.lastMessage !== "string") return true;
   if (typeof existingThread.lastSender !== "string") return true;
-
   const existingReadBy = existingThread.readBy || {};
   if (typeof existingReadBy[nextThread.userA] !== "number") return true;
   if (typeof existingReadBy[nextThread.userB] !== "number") return true;
-
   return false;
+};
+
+/* ── Display helpers ── */
+const getUserLabel = (user: UserWithUid | undefined): string => {
+  if (!user) return "User";
+  return (
+    `${user.firstName || ""} ${user.lastInitial ? `${user.lastInitial}.` : ""}`.trim() || "User"
+  );
+};
+
+const getInitials = (user: UserWithUid | undefined): string => {
+  if (!user) return "?";
+  const first = (user.firstName || "?").charAt(0).toUpperCase();
+  const last = (user.lastInitial || "").charAt(0).toUpperCase();
+  return `${first}${last}` || "?";
+};
+
+const formatTime = (ts: number): string => {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+};
+
+const formatDateSeparator = (ts: number): string => {
+  if (!ts) return "";
+  const date = new Date(ts);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  const sameYear = date.getFullYear() === today.getFullYear();
+  return date.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+};
+
+const formatListTime = (ts: number): string => {
+  if (!ts) return "";
+  const date = new Date(ts);
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) {
+    return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+  const diffDays = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 7) {
+    return date.toLocaleDateString(undefined, { weekday: "short" });
+  }
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+};
+
+/* ── Grouped messages ── */
+interface RenderedItem {
+  kind: "separator" | "message";
+  key: string;
+  date?: string;
+  message?: MessageWithId;
+  isSelf?: boolean;
+  isGroupStart?: boolean;
+  isGroupEnd?: boolean;
+}
+
+const buildRenderedItems = (
+  messages: MessageWithId[],
+  currentUid: string
+): RenderedItem[] => {
+  const items: RenderedItem[] = [];
+  let lastDateKey = "";
+  for (let i = 0; i < messages.length; i += 1) {
+    const m = messages[i]!;
+    const prev = messages[i - 1];
+    const next = messages[i + 1];
+    const dateKey = new Date(m.createdAt || 0).toDateString();
+    if (dateKey !== lastDateKey) {
+      items.push({
+        kind: "separator",
+        key: `sep-${dateKey}-${i}`,
+        date: formatDateSeparator(m.createdAt || 0),
+      });
+      lastDateKey = dateKey;
+    }
+    const isSelf = m.from === currentUid;
+    const isGroupStart =
+      !prev ||
+      prev.from !== m.from ||
+      new Date(prev.createdAt || 0).toDateString() !== dateKey ||
+      (m.createdAt || 0) - (prev.createdAt || 0) > 5 * 60 * 1000;
+    const isGroupEnd =
+      !next ||
+      next.from !== m.from ||
+      new Date(next.createdAt || 0).toDateString() !== dateKey ||
+      (next.createdAt || 0) - (m.createdAt || 0) > 5 * 60 * 1000;
+    items.push({
+      kind: "message",
+      key: m.id,
+      message: m,
+      isSelf,
+      isGroupStart,
+      isGroupEnd,
+    });
+  }
+  return items;
 };
 
 export default function MessagingPanel({ currentUser, currentRole }: MessagingPanelProps) {
@@ -105,16 +206,16 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
   const [messages, setMessages] = useState<MessageWithId[]>([]);
   const [messageText, setMessageText] = useState<string>("");
   const [contactSearch, setContactSearch] = useState<string>("");
-  const [isOpen, setIsOpen] = useState<boolean>(false);
   const [showContacts, setShowContacts] = useState<boolean>(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [conversationSearch, setConversationSearch] = useState<string>("");
+  const streamRef = useRef<HTMLDivElement>(null);
+  const hasAutoSelected = useRef<boolean>(false);
 
   useEffect(() => {
     if (!currentUser) {
       setUsers([]);
       return undefined;
     }
-
     const usersRef = ref(db, "Users");
     const unsubscribe = onValue(usersRef, (snapshot) => {
       const data = snapshot.val() || {};
@@ -124,7 +225,6 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
       }));
       setUsers(nextUsers);
     });
-
     return () => unsubscribe();
   }, [currentUser]);
 
@@ -133,30 +233,23 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
       setThreads({});
       return undefined;
     }
-
     let active = true;
     const idxRef = ref(db, `threadIndex/${currentUser.uid}`);
-
     const unsubscribe = onValue(
       idxRef,
       async (snapshot) => {
         const ids = snapshot.exists() ? Object.keys(snapshot.val()) : [];
         const nextThreads: Record<string, Thread> = {};
-
         await Promise.all(
           ids.map(async (id) => {
             const snap = await get(ref(db, `threads/${id}`));
             if (snap.exists()) nextThreads[id] = snap.val() as Thread;
           })
         );
-
         if (active) setThreads(nextThreads);
       },
-      (error) => {
-        console.error("Threads index error:", error);
-      }
+      (error) => console.error("Threads index error:", error)
     );
-
     return () => {
       active = false;
       unsubscribe();
@@ -168,7 +261,6 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
       setMessages([]);
       return undefined;
     }
-
     const msgRef = ref(db, `messages/${selectedThreadId}`);
     const unsubscribe = onValue(
       msgRef,
@@ -179,39 +271,16 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
           .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
         setMessages(list);
       },
-      (error) => {
-        console.error("Messages read error:", error);
-      }
+      (error) => console.error("Messages read error:", error)
     );
-
     return () => unsubscribe();
   }, [selectedThreadId]);
 
+  // Auto-scroll to bottom on new messages
   useEffect(() => {
-    if (!isOpen) return undefined;
-
-    const handleClick = (event: MouseEvent) => {
-      if (!menuRef.current) return;
-      if (menuRef.current.contains(event.target as Node)) return;
-      setIsOpen(false);
-      setShowContacts(false);
-    };
-
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-        setShowContacts(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleKey);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [isOpen]);
+    const el = streamRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, selectedThreadId]);
 
   const usersById = useMemo<Record<string, UserWithUid>>(() => {
     const map: Record<string, UserWithUid> = {};
@@ -223,21 +292,14 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
 
   const threadList = useMemo<ThreadWithMeta[]>(() => {
     if (!currentUser) return [];
-
     return Object.entries(threads)
       .map(([id, thread]) => {
         if (!thread || !isAllowedRolePair(thread.roleA, thread.roleB)) return null;
-
-        const otherUid =
-          thread.userA === currentUser.uid ? thread.userB : thread.userA;
+        const otherUid = thread.userA === currentUser.uid ? thread.userB : thread.userA;
         if (!otherUid) return null;
-
         const other = usersById[otherUid];
-        const otherLabel = other
-          ? `${other.firstName || ""} ${other.lastInitial ? `${other.lastInitial}.` : ""}`.trim() ||
-            "User"
-          : "User";
-        const displayName = other ? `${otherLabel} - ${other.email}` : otherUid;
+        const displayName = getUserLabel(other);
+        const initials = getInitials(other);
         const readBy = thread.readBy || {};
         const readAt = Number(readBy[currentUser.uid] || 0);
         const unread = !!(
@@ -245,11 +307,13 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
           thread.lastSender !== currentUser.uid &&
           Number(thread.updatedAt || 0) > readAt
         );
-
         return {
           id,
           ...thread,
+          otherUid,
           displayName,
+          initials,
+          email: other?.email || "",
           unread,
         } as ThreadWithMeta;
       })
@@ -257,9 +321,32 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
       .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
   }, [currentUser, threads, usersById]);
 
+  const filteredThreadList = useMemo<ThreadWithMeta[]>(() => {
+    const q = conversationSearch.trim().toLowerCase();
+    if (!q) return threadList;
+    return threadList.filter(
+      (t) =>
+        t.displayName.toLowerCase().includes(q) ||
+        t.email.toLowerCase().includes(q) ||
+        (t.lastMessage || "").toLowerCase().includes(q)
+    );
+  }, [threadList, conversationSearch]);
+
+  // Auto-select most recent thread on first load
+  useEffect(() => {
+    if (hasAutoSelected.current) return;
+    if (threadList.length === 0) return;
+    if (selectedThreadId) {
+      hasAutoSelected.current = true;
+      return;
+    }
+    setSelectedThreadId(threadList[0]!.id);
+    hasAutoSelected.current = true;
+  }, [threadList, selectedThreadId]);
+
+  // If selected thread disappears, clear it
   useEffect(() => {
     if (!selectedThreadId) return;
-
     const stillVisible = threadList.some((thread) => thread.id === selectedThreadId);
     if (!stillVisible) {
       setSelectedThreadId("");
@@ -267,31 +354,26 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
     }
   }, [selectedThreadId, threadList]);
 
+  // Mark thread as read when selected
   useEffect(() => {
-    if (!currentUser || !isOpen || !selectedThreadId) return;
-
-    const activeThread = threadList.find((thread) => thread.id === selectedThreadId);
+    if (!currentUser || !selectedThreadId) return;
+    const activeThread = threadList.find((t) => t.id === selectedThreadId);
     if (activeThread && activeThread.unread) {
       update(ref(db, `threads/${selectedThreadId}`), {
         [`readBy/${currentUser.uid}`]: Date.now(),
-      }).catch((error) => {
-        console.error("Thread read update error:", error);
-      });
+      }).catch((error) => console.error("Thread read update error:", error));
     }
-  }, [currentUser, isOpen, selectedThreadId, threadList]);
+  }, [currentUser, selectedThreadId, threadList]);
 
   const contacts = useMemo<UserWithUid[]>(() => {
     if (!currentUser || !currentRole) return [];
-
     const allowed = roleTargets[normalizeRole(currentRole)] || [];
     const query = contactSearch.trim().toLowerCase();
-
     return users
       .filter((user) => user.uid !== currentUser.uid)
       .filter((user) => allowed.includes(normalizeRole(user.role)))
       .filter((user) => {
         if (!query) return true;
-
         return (
           String(user.email || "").toLowerCase().includes(query) ||
           String(user.firstName || "").toLowerCase().includes(query) ||
@@ -301,35 +383,29 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
       .sort((a, b) => String(a.email || "").localeCompare(String(b.email || "")));
   }, [contactSearch, currentRole, currentUser, users]);
 
-  const totalUnread = useMemo<number>(
-    () => threadList.reduce((count, thread) => count + (thread.unread ? 1 : 0), 0),
-    [threadList]
-  );
-
   const selectedThread = useMemo<ThreadWithMeta | null>(
     () => threadList.find((thread) => thread.id === selectedThreadId) || null,
     [selectedThreadId, threadList]
   );
 
+  const selectedOther = useMemo<UserWithUid | undefined>(
+    () => (selectedThread ? usersById[selectedThread.otherUid] : undefined),
+    [selectedThread, usersById]
+  );
+
   const markThreadRead = async (threadId: string): Promise<void> => {
     if (!currentUser || !threadId) return;
-
     setThreads((prev) => {
       const thread = prev[threadId];
       if (!thread) return prev;
-
       return {
         ...prev,
         [threadId]: {
           ...thread,
-          readBy: {
-            ...(thread.readBy || {}),
-            [currentUser.uid]: Date.now(),
-          },
+          readBy: { ...(thread.readBy || {}), [currentUser.uid]: Date.now() },
         },
       };
     });
-
     try {
       await update(ref(db, `threads/${threadId}`), {
         [`readBy/${currentUser.uid}`]: Date.now(),
@@ -341,45 +417,24 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
 
   const openThreadWith = async (other: UserWithUid): Promise<void> => {
     if (!currentUser || !other) return;
-
     const currentRoleValue = normalizeRole(currentRole);
     const otherRoleValue = normalizeRole(other.role);
     if (!isAllowedRolePair(currentRoleValue, otherRoleValue)) {
       addToast("error", "That conversation is not allowed.");
       return;
     }
-
     const threadId = threadIdFor(currentUser.uid, other.uid);
     const threadRef = ref(db, `threads/${threadId}`);
     const now = Date.now();
-
     try {
-      logMessagingDebug("openThread:start", {
-        threadId,
-        currentUid: currentUser.uid,
-        currentRole: currentRoleValue,
-        otherUid: other.uid,
-        otherRole: otherRoleValue,
-      });
-
       let existingThread: Thread | null = null;
-
       try {
         const existing = await get(threadRef);
         existingThread = existing.exists() ? (existing.val() as Thread) : null;
       } catch (error) {
         const message = String((error as { message?: string })?.message || "");
-        if (!message.toLowerCase().includes("permission denied")) {
-          throw error;
-        }
-
-        console.info("[MessagingPanel] openThread:threadReadDeniedTreatAsNew", {
-          threadId,
-          path: `threads/${threadId}`,
-          reason: message,
-        });
+        if (!message.toLowerCase().includes("permission denied")) throw error;
       }
-
       const threadRecord = buildThreadRecord({
         currentUid: currentUser.uid,
         currentRoleValue,
@@ -388,93 +443,43 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
         existingThread,
         now,
       });
-
-      logMessagingDebug("openThread:existing", {
-        threadId,
-        exists: !!existingThread,
-        existingThread,
-        nextThread: threadRecord,
-      });
-
       if (!existingThread) {
-        logMessagingDebug("openThread:createThread", {
-          threadId,
-          path: `threads/${threadId}`,
-        });
         await set(threadRef, threadRecord);
       } else {
-        const thread = existingThread;
-        if (!sameParticipantPair(thread, currentUser.uid, other.uid)) {
-          logMessagingDebug("openThread:invalidParticipants", {
-            threadId,
-            existingThread: thread,
-          });
+        if (!sameParticipantPair(existingThread, currentUser.uid, other.uid)) {
           addToast("error", "This conversation has invalid participants.");
           return;
         }
-
         if (!isAllowedRolePair(threadRecord.roleA, threadRecord.roleB)) {
-          logMessagingDebug("openThread:invalidRolePair", {
-            threadId,
-            roleA: threadRecord.roleA,
-            roleB: threadRecord.roleB,
-          });
           addToast("error", "This conversation is no longer available.");
           return;
         }
-
-        if (threadNeedsRepair(thread, threadRecord)) {
-          logMessagingDebug("openThread:repairThread", {
-            threadId,
-            path: `threads/${threadId}`,
-            existingThread: thread,
-            nextThread: threadRecord,
-          });
+        if (threadNeedsRepair(existingThread, threadRecord)) {
           await update(threadRef, threadRecord);
         }
       }
-
-      logMessagingDebug("openThread:writeOwnIndex", {
-        threadId,
-        path: `threadIndex/${currentUser.uid}/${threadId}`,
-      });
       await set(ref(db, `threadIndex/${currentUser.uid}/${threadId}`), true);
-
       try {
-        logMessagingDebug("openThread:writePeerIndex", {
-          threadId,
-          path: `threadIndex/${other.uid}/${threadId}`,
-        });
         await set(ref(db, `threadIndex/${other.uid}/${threadId}`), true);
-      } catch (error) {
-        console.warn("[MessagingPanel] openThread:writePeerIndex:error", {
-          threadId,
-          path: `threadIndex/${other.uid}/${threadId}`,
-          code: (error as { code?: string })?.code || null,
-          message: (error as { message?: string })?.message || String(error),
-        });
+      } catch {
+        /* ignore peer index errors */
       }
-
+      // Write to admin audit index (school-scoped) so admins can oversee.
+      try {
+        const currentUserRecord = usersById[currentUser.uid];
+        const schoolId = currentUserRecord?.schoolId || other.schoolId || null;
+        if (schoolId) {
+          await set(ref(db, `adminThreadIndex/${schoolId}/${threadId}`), true);
+        }
+      } catch {
+        /* ignore admin index errors */
+      }
       setSelectedThreadId(threadId);
-      setIsOpen(true);
       setShowContacts(false);
       setContactSearch("");
-      logMessagingDebug("openThread:markRead", {
-        threadId,
-        path: `threads/${threadId}/readBy/${currentUser.uid}`,
-      });
       await markThreadRead(threadId);
-      logMessagingDebug("openThread:success", { threadId });
     } catch (error) {
-      console.error("[MessagingPanel] openThread:error", {
-        threadId,
-        currentUid: currentUser.uid,
-        currentRole: currentRoleValue,
-        otherUid: other.uid,
-        otherRole: otherRoleValue,
-        code: (error as { code?: string })?.code || null,
-        message: (error as { message?: string })?.message || String(error),
-      });
+      console.error("[MessagingPanel] openThread:error", error);
       addToast("error", "Unable to open that conversation right now.");
     }
   };
@@ -484,27 +489,18 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
       addToast("error", "Select a conversation");
       return;
     }
-
     const text = messageText.trim();
     if (!text) return;
-
     const now = Date.now();
     const msgRef = push(ref(db, `messages/${selectedThreadId}`));
-
     try {
-      await set(msgRef, {
-        from: currentUser.uid,
-        text,
-        createdAt: now,
-      });
-
+      await set(msgRef, { from: currentUser.uid, text, createdAt: now });
       await update(ref(db, `threads/${selectedThreadId}`), {
         updatedAt: now,
         lastMessage: text,
         lastSender: currentUser.uid,
         [`readBy/${currentUser.uid}`]: now,
       });
-
       setMessageText("");
     } catch (error) {
       console.error("Send message error:", error);
@@ -514,165 +510,232 @@ export default function MessagingPanel({ currentUser, currentRole }: MessagingPa
 
   if (!currentUser) return null;
 
+  const renderedItems = buildRenderedItems(messages, currentUser.uid);
+
   return (
-    <div className="header-menu" ref={menuRef}>
-      <button
-        className="header-menu-button icon-only"
-        type="button"
-        onClick={() => {
-          setIsOpen((prev) => !prev);
-          if (isOpen) setShowContacts(false);
-        }}
-        aria-label="Messages"
-        title="Messages"
-      >
-        <MessageIcon className="icon" />
-        {totalUnread > 0 && (
-          <span className="header-badge" aria-hidden="true">
-            {totalUnread > 9 ? "9+" : totalUnread}
-          </span>
+    <div className="msg-page">
+      {/* ── Sidebar: conversations ── */}
+      <aside className="msg-sidebar">
+        <div className="msg-sidebar-header">
+          <h2>Messages</h2>
+          <button
+            type="button"
+            className={`btn btn-ghost btn-sm${showContacts ? " is-active" : ""}`}
+            onClick={() => setShowContacts((prev) => !prev)}
+            title={showContacts ? "Hide contacts" : "New message"}
+          >
+            {showContacts ? (
+              "Cancel"
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                New
+              </>
+            )}
+          </button>
+        </div>
+
+        {showContacts ? (
+          <>
+            <div className="msg-search-wrap">
+              <input
+                className="input msg-search-input"
+                type="text"
+                placeholder="Search contacts..."
+                value={contactSearch}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setContactSearch(e.target.value)
+                }
+              />
+            </div>
+            <div className="msg-thread-list">
+              {contacts.length === 0 ? (
+                <div className="msg-empty-note">
+                  {contactSearch.trim() ? "No contacts found." : "No contacts available."}
+                </div>
+              ) : (
+                contacts.map((user) => (
+                  <button
+                    key={user.uid}
+                    type="button"
+                    className="msg-thread-item"
+                    onClick={() => openThreadWith(user)}
+                  >
+                    <div className="msg-avatar">{getInitials(user)}</div>
+                    <div className="msg-thread-body">
+                      <div className="msg-thread-top">
+                        <span className="msg-thread-name">{getUserLabel(user)}</span>
+                      </div>
+                      <div className="msg-thread-preview">{user.email}</div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="msg-search-wrap">
+              <input
+                className="input msg-search-input"
+                type="text"
+                placeholder="Search conversations..."
+                value={conversationSearch}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setConversationSearch(e.target.value)
+                }
+              />
+            </div>
+            <div className="msg-thread-list">
+              {filteredThreadList.length === 0 ? (
+                <div className="msg-empty-note">
+                  {conversationSearch.trim()
+                    ? "No conversations found."
+                    : "No conversations yet. Click \"New\" to start one."}
+                </div>
+              ) : (
+                filteredThreadList.map((thread) => (
+                  <button
+                    key={thread.id}
+                    type="button"
+                    className={`msg-thread-item${
+                      selectedThreadId === thread.id ? " is-active" : ""
+                    }${thread.unread ? " is-unread" : ""}`}
+                    onClick={async () => {
+                      setSelectedThreadId(thread.id);
+                      await markThreadRead(thread.id);
+                    }}
+                  >
+                    <div className="msg-avatar">{thread.initials}</div>
+                    <div className="msg-thread-body">
+                      <div className="msg-thread-top">
+                        <span className="msg-thread-name">{thread.displayName}</span>
+                        <span className="msg-thread-time">
+                          {formatListTime(Number(thread.updatedAt || 0))}
+                        </span>
+                      </div>
+                      <div className="msg-thread-preview">
+                        {thread.lastSender === currentUser.uid && thread.lastMessage ? "You: " : ""}
+                        {thread.lastMessage || "No messages yet"}
+                      </div>
+                    </div>
+                    {thread.unread && <span className="msg-unread-dot" aria-hidden />}
+                  </button>
+                ))
+              )}
+            </div>
+          </>
         )}
-      </button>
+      </aside>
 
-      {isOpen && (
-        <div className="header-popover messages-popover">
-          <div className="popover-title-row">
-            <h3>Messages</h3>
-            <button
-              className="btn btn-ghost"
-              type="button"
-              onClick={() => setShowContacts((prev) => !prev)}
-            >
-              {showContacts ? "Hide contacts" : "New message"}
-            </button>
-          </div>
-
-          <div className="messages-layout">
-            <div className="messages-column">
-              <div className="small">Conversations</div>
-              <div className="popover-list">
-                {threadList.length === 0 ? (
-                  <div className="small">No conversations yet.</div>
-                ) : (
-                  threadList.map((thread) => (
-                    <button
-                      key={thread.id}
-                      className={`thread-item${selectedThreadId === thread.id ? " is-active" : ""}`}
-                      type="button"
-                      onClick={async () => {
-                        setSelectedThreadId(thread.id);
-                        await markThreadRead(thread.id);
-                      }}
-                    >
-                      <div className="thread-item-top">
-                        <strong>{thread.displayName}</strong>
-                        {thread.unread && <span className="thread-unread-dot" />}
-                      </div>
-                      <div className="small">
-                        {thread.lastMessage
-                          ? thread.lastMessage.slice(0, 60)
-                          : "No messages yet"}
-                      </div>
-                      <div className="small popover-item-time">
-                        {formatRelativeTime(thread.updatedAt)}
-                      </div>
-                    </button>
-                  ))
+      {/* ── Thread panel ── */}
+      <section className="msg-thread">
+        {selectedThread ? (
+          <>
+            <header className="msg-thread-header">
+              <div className="msg-avatar msg-avatar-lg">{selectedThread.initials}</div>
+              <div className="msg-thread-header-info">
+                <div className="msg-thread-header-name">{selectedThread.displayName}</div>
+                {selectedOther?.email && (
+                  <div className="msg-thread-header-meta">{selectedOther.email}</div>
                 )}
               </div>
+            </header>
 
-              {showContacts && (
-                <div className="messages-contacts">
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Search contacts..."
-                    value={contactSearch}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setContactSearch(e.target.value)
-                    }
-                  />
-                  <div className="popover-list">
-                    {contacts.length === 0 ? (
-                      <div className="small">
-                        {contactSearch.trim()
-                          ? "No contacts found."
-                          : "No contacts available."}
-                      </div>
-                    ) : (
-                      contacts.map((user) => (
-                        <button
-                          key={user.uid}
-                          className="thread-item"
-                          type="button"
-                          onClick={() => openThreadWith(user)}
-                        >
-                          <div className="thread-item-top">
-                            <strong>
-                              {`${user.firstName || ""} ${user.lastInitial ? `${user.lastInitial}.` : ""}`.trim() ||
-                                "User"}
-                            </strong>
-                          </div>
-                          <div className="small">{user.email}</div>
-                        </button>
-                      ))
-                    )}
-                  </div>
+            <div className="msg-stream" ref={streamRef}>
+              {renderedItems.length === 0 ? (
+                <div className="msg-stream-empty">
+                  <div className="msg-stream-empty-title">No messages yet</div>
+                  <div className="msg-stream-empty-sub">Send a message to start the conversation.</div>
                 </div>
+              ) : (
+                renderedItems.map((item) => {
+                  if (item.kind === "separator") {
+                    return (
+                      <div key={item.key} className="msg-date-separator">
+                        <span>{item.date}</span>
+                      </div>
+                    );
+                  }
+                  const m = item.message!;
+                  const classes = [
+                    "msg-bubble-row",
+                    item.isSelf ? "is-self" : "is-other",
+                    item.isGroupStart ? "group-start" : "",
+                    item.isGroupEnd ? "group-end" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
+                  return (
+                    <div key={item.key} className={classes}>
+                      {!item.isSelf && (
+                        <div className="msg-bubble-avatar">
+                          {item.isGroupEnd && (
+                            <div className="msg-avatar msg-avatar-sm">
+                              {selectedThread.initials}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="msg-bubble-wrap">
+                        <div className="msg-bubble">{m.text}</div>
+                        {item.isGroupEnd && (
+                          <div className="msg-bubble-time">{formatTime(m.createdAt || 0)}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
 
-            <div className="messages-column messages-thread-column">
-              {selectedThread ? (
-                <>
-                  <div className="small">{selectedThread.displayName}</div>
-                  <div className="message-stream">
-                    {messages.length === 0 ? (
-                      <div className="small">No messages yet.</div>
-                    ) : (
-                      messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`message-bubble${
-                            message.from === currentUser.uid ? " is-self" : ""
-                          }`}
-                        >
-                          <div className="message-label">
-                            {message.from === currentUser.uid ? "You" : "Them"}
-                          </div>
-                          <div>{message.text}</div>
-                          <div className="small popover-item-time">
-                            {formatRelativeTime(message.createdAt)}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  <div className="form-row" style={{ marginTop: 8 }}>
-                    <input
-                      className="input"
-                      type="text"
-                      placeholder="Type a message..."
-                      value={messageText}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setMessageText(e.target.value)
-                      }
-                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                        if (e.key === "Enter") sendMessage();
-                      }}
-                    />
-                    <button className="btn btn-primary" type="button" onClick={sendMessage}>
-                      Send
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="small">Select a conversation or start a new one.</div>
-              )}
+            <div className="msg-compose">
+              <input
+                className="input msg-compose-input"
+                type="text"
+                placeholder={`Message ${selectedThread.displayName}...`}
+                value={messageText}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setMessageText(e.target.value)
+                }
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+              />
+              <button
+                className="btn btn-primary msg-compose-send"
+                type="button"
+                onClick={sendMessage}
+                disabled={!messageText.trim()}
+                aria-label="Send"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 2L11 13" />
+                  <path d="M22 2l-7 20-4-9-9-4z" />
+                </svg>
+                Send
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="msg-placeholder">
+            <div className="msg-placeholder-icon">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+              </svg>
+            </div>
+            <div className="msg-placeholder-title">Select a conversation</div>
+            <div className="msg-placeholder-sub">
+              Choose one from the list or start a new message.
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </section>
     </div>
   );
 }

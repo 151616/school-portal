@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "set-admin-claim": "node scripts/setAdminClaim.cjs",
-    "cleanup-emails": "node scripts/cleanup_emails.js"
+    "cleanup-emails": "node scripts/cleanup_emails.js",
+    "seed": "node scripts/seedEmulator.cjs"
   },
   "dependencies": {
     "@dataconnect/admin-generated": "file:src/dataconnect-admin-generated",

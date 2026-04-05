@@ -15,7 +15,7 @@ export default function ConfirmModal({ open, title = 'Confirm', description = ''
         <div className="small">{description}</div>
         <div style={{ height: 12 }} />
         <div className="actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={(e) => { const b = e.currentTarget; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 260); onCancel(); }} style={{ marginRight: 8 }}>Cancel</button>
+          <button className="btn btn-ghost" onClick={(e) => { const b = e.currentTarget; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 260); onCancel(); }} style={{ marginRight: 8 }} type="button">Cancel</button>
           <button className="btn btn-primary" onClick={(e) => { const b = e.currentTarget; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 260); onConfirm(); }}>Confirm</button>
         </div>
       </div>

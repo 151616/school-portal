@@ -175,8 +175,8 @@ export default function AdminCalendar({ mySchoolId }: Props) {
                     </div>
                     {!isActive && (
                       <button
-                        className="btn btn-ghost"
-                        style={{ fontSize: 12, marginTop: 6, padding: "2px 8px" }}
+                        className="btn btn-ghost btn-xs"
+                        style={{ marginTop: 6 }}
                         onClick={() => handleSetActiveTerm(key, tk)}
                       >
                         Set Active
@@ -252,7 +252,7 @@ export default function AdminCalendar({ mySchoolId }: Props) {
           </div>
         </div>
       ) : (
-        <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => setShowNewSession(true)}>
+        <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => setShowNewSession(true)} type="button">
           + New Session
         </button>
       )}

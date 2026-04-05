@@ -10,6 +10,7 @@ import AdminCalendar from "./AdminCalendar";
 import AdminReportCards from "./AdminReportCards";
 import NotificationsMenu from "../NotificationsMenu";
 import MessagingPanel from "../messaging/MessagingPanel";
+import AdminAudit from "./AdminAudit";
 import Settings from "../Settings";
 import { LogoutIcon, SettingsIcon } from "@/shared/icons";
 import SidebarNav from "@/shared/components/SidebarNav";
@@ -45,7 +46,7 @@ interface ClassRecord {
   [key: string]: unknown;
 }
 
-type ActivePage = "users" | "classes" | "calendar" | "reportcards" | "diagnostics" | "messages" | "settings";
+type ActivePage = "users" | "classes" | "calendar" | "reportcards" | "diagnostics" | "messages" | "audit" | "settings";
 
 interface AdminDashboardProps {
   user: User;
@@ -61,6 +62,7 @@ const pageTitles: Record<ActivePage, string> = {
   reportcards: "Report Cards",
   diagnostics: "Diagnostics",
   messages: "Messages",
+  audit: "Message Audit",
   settings: "Settings",
 };
 
@@ -131,6 +133,7 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
     { id: "calendar", label: "Academic Calendar" },
     { id: "reportcards", label: "Report Cards" },
     { id: "messages", label: "Messages" },
+    { id: "audit", label: "Message Audit" },
     { id: "diagnostics", label: "Diagnostics" },
     { id: "settings", label: "Settings", icon: <SettingsIcon className="icon" /> },
   ];
@@ -200,27 +203,30 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
         </div>
 
         <div className="admin-content">
-          <div className="card" style={{ padding: 20 }}>
-            {activePage === "users" && <AdminUsers users={users} invites={invites} classes={classes} mySchoolId={mySchoolId} />}
-            {activePage === "classes" && <AdminClasses users={users} classes={classes} mySchoolId={mySchoolId} />}
-            {activePage === "calendar" && <AdminCalendar mySchoolId={mySchoolId} />}
-            {activePage === "reportcards" && <AdminReportCards classes={classes} mySchoolId={mySchoolId} />}
-            {activePage === "messages" && (
-              <MessagingPanel currentUser={user} currentRole="admin" />
-            )}
-            {activePage === "diagnostics" && (
-              <AdminDiagnostics
-                mySchoolId={mySchoolId}
-                totalUsers={totalUsers}
-                totalStudents={totalStudents}
-                totalTeachers={totalTeachers}
-                totalAdmins={totalAdmins}
-                pendingInvites={pendingInvites}
-                classCount={classCount}
-              />
-            )}
-            {activePage === "settings" && <Settings />}
-          </div>
+          {activePage === "messages" ? (
+            <MessagingPanel currentUser={user} currentRole="admin" />
+          ) : activePage === "audit" ? (
+            <AdminAudit user={user} mySchoolId={mySchoolId} />
+          ) : (
+            <div className="card" style={{ padding: 20 }}>
+              {activePage === "users" && <AdminUsers users={users} invites={invites} classes={classes} mySchoolId={mySchoolId} />}
+              {activePage === "classes" && <AdminClasses users={users} classes={classes} mySchoolId={mySchoolId} />}
+              {activePage === "calendar" && <AdminCalendar mySchoolId={mySchoolId} />}
+              {activePage === "reportcards" && <AdminReportCards classes={classes} mySchoolId={mySchoolId} />}
+              {activePage === "diagnostics" && (
+                <AdminDiagnostics
+                  mySchoolId={mySchoolId}
+                  totalUsers={totalUsers}
+                  totalStudents={totalStudents}
+                  totalTeachers={totalTeachers}
+                  totalAdmins={totalAdmins}
+                  pendingInvites={pendingInvites}
+                  classCount={classCount}
+                />
+              )}
+              {activePage === "settings" && <Settings />}
+            </div>
+          )}
         </div>
       </div>
     </div>

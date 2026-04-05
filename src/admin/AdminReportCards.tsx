@@ -3,6 +3,7 @@ import { ref, onValue, get, set } from "firebase/database";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/firebase";
 import { addToast } from "@/shared/toastService";
+import Combobox from "@/shared/components/Combobox";
 import ReportCardView from "@/reportCards/ReportCardView";
 import type { AcademicConfig, ReportCard, PublishReportCardsData, PublishReportCardsResult } from "@/types";
 
@@ -289,18 +290,24 @@ export default function AdminReportCards({ classes, mySchoolId }: Props) {
 
       {/* Session/Term selectors */}
       <div className="form-row" style={{ marginBottom: 16 }}>
-        <select className="input" value={selectedSession} onChange={(e) => setSelectedSession(e.target.value)}>
-          <option value="">Select Session</option>
-          {sessionKeys.map((k) => (
-            <option key={k} value={k}>{sessions[k]!.label}</option>
-          ))}
-        </select>
-        <select className="input" value={selectedTerm} onChange={(e) => setSelectedTerm(e.target.value)}>
-          <option value="">Select Term</option>
-          {termKeys.map((k) => (
-            <option key={k} value={k}>{currentSession!.terms[k]!.label}</option>
-          ))}
-        </select>
+        <Combobox
+          options={[
+            { value: "", label: "Select Session" },
+            ...sessionKeys.map((k) => ({ value: k, label: sessions[k]!.label })),
+          ]}
+          value={selectedSession}
+          onChange={(v) => setSelectedSession(v)}
+          placeholder="Select Session"
+        />
+        <Combobox
+          options={[
+            { value: "", label: "Select Term" },
+            ...termKeys.map((k) => ({ value: k, label: currentSession!.terms[k]!.label })),
+          ]}
+          value={selectedTerm}
+          onChange={(v) => setSelectedTerm(v)}
+          placeholder="Select Term"
+        />
       </div>
 
       {/* Readiness Table */}
@@ -345,7 +352,7 @@ export default function AdminReportCards({ classes, mySchoolId }: Props) {
                     </td>
                     <td style={{ padding: 10, textAlign: "center" }}>
                       {r.publishedCount > 0 && (
-                        <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={() => handlePreview(r.classId)}>
+                        <button className="btn btn-ghost btn-xs" onClick={() => handlePreview(r.classId)}>
                           Preview
                         </button>
                       )}
@@ -397,7 +404,7 @@ export default function AdminReportCards({ classes, mySchoolId }: Props) {
               </div>
             );
           })}
-          <button className="btn btn-primary" onClick={handleSavePrincipalComments} style={{ marginTop: 8 }}>
+          <button className="btn btn-primary" onClick={handleSavePrincipalComments} style={{ marginTop: 8 }} type="button">
             Save Principal Comments
           </button>
         </div>

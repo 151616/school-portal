@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { get, onValue, ref } from "firebase/database";
 import { db } from "@/firebase";
 import { addToast as _addToast } from "@/shared/toastService";
+import Combobox from "@/shared/components/Combobox";
 import AddChildModal from "@/parent/AddChildModal";
 import ReportCardView from "@/reportCards/ReportCardView";
 import ReportCardTrend from "@/reportCards/components/ReportCardTrend";
@@ -352,16 +353,18 @@ export default function ParentDashboard({ user }: Props) {
             const termKeys = currentSession ? Object.keys(currentSession.terms) : [];
             return (
               <div className="form-row" style={{ marginBottom: 16 }}>
-                <select className="input" value={selectedSession} onChange={(e) => setSelectedSession(e.target.value)}>
-                  {sessionKeys.map((k) => (
-                    <option key={k} value={k}>{sessions[k]!.label}</option>
-                  ))}
-                </select>
-                <select className="input" value={selectedTerm} onChange={(e) => setSelectedTerm(e.target.value)}>
-                  {termKeys.map((k) => (
-                    <option key={k} value={k}>{currentSession!.terms[k]!.label}</option>
-                  ))}
-                </select>
+                <Combobox
+                  options={sessionKeys.map((k) => ({ value: k, label: sessions[k]!.label }))}
+                  value={selectedSession}
+                  onChange={(v) => setSelectedSession(v)}
+                  placeholder="Select Session"
+                />
+                <Combobox
+                  options={termKeys.map((k) => ({ value: k, label: currentSession!.terms[k]!.label }))}
+                  value={selectedTerm}
+                  onChange={(v) => setSelectedTerm(v)}
+                  placeholder="Select Term"
+                />
               </div>
             );
           })()}

@@ -22,6 +22,8 @@ interface AppSidebarProps {
   onPageChange: (id: string) => void;
   children: React.ReactNode;
   pageTitle: string;
+  pageSubtitle?: string;
+  sidebarExtra?: React.ReactNode;
 }
 
 const roleLabels: Record<string, string> = {
@@ -31,15 +33,14 @@ const roleLabels: Record<string, string> = {
   parent: "Parent",
 };
 
-export default function AppSidebar({ user, role, navItems, activePage, onPageChange, children, pageTitle }: AppSidebarProps) {
+export default function AppSidebar({ user, role, navItems, activePage, onPageChange, children, pageTitle, pageSubtitle, sidebarExtra }: AppSidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const displayName = user?.displayName || user?.email?.split("@")[0] || roleLabels[role] || "User";
 
-  const allNavItems = useMemo(() => [
-    ...navItems,
-    { id: "settings", label: "Settings", icon: <SettingsIcon className="icon" /> },
-  ], [navItems]);
+  const settingsItem = useMemo(() => (
+    { id: "settings", label: "Settings", icon: <SettingsIcon className="icon" /> }
+  ), []);
 
   const handleLogout = async () => {
     try {
@@ -64,7 +65,16 @@ export default function AppSidebar({ user, role, navItems, activePage, onPageCha
           </div>
 
           <SidebarNav
-            items={allNavItems}
+            items={navItems}
+            activeId={activePage}
+            onSelect={(id) => {
+              onPageChange(id);
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
+          />
+          {sidebarExtra}
+          <SidebarNav
+            items={[settingsItem]}
             activeId={activePage}
             onSelect={(id) => {
               onPageChange(id);
@@ -105,8 +115,13 @@ export default function AppSidebar({ user, role, navItems, activePage, onPageCha
 
       <div className={`admin-main${sidebarOpen ? " sidebar-open" : ""}`}>
         <div className="admin-topbar">
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <h2 style={{ margin: 0 }}>{pageTitle}</h2>
+            {pageSubtitle && (
+              <div style={{ fontSize: "0.82rem", color: "var(--muted)", fontWeight: 500 }}>
+                {pageSubtitle}
+              </div>
+            )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <NotificationsMenu currentUser={user} />
